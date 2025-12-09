@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-const PERPLEXITY_API_KEY = Deno.env.get("PERPLEXITY_API_KEY")!
-const PERPLEXITY_API = "https://api.perplexity.ai/chat/completions"
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY")!
+const OPENROUTER_API = "https://openrouter.ai/api/v1/chat/completions"
+const MODEL = "perplexity/sonar-deep-research"
 
 interface EnrichmentRequest {
   operation: 'find' | 'confirm'
@@ -20,14 +21,16 @@ interface EnrichmentRequest {
 }
 
 async function callPerplexity(prompt: string): Promise<string> {
-  const response = await fetch(PERPLEXITY_API, {
+  const response = await fetch(OPENROUTER_API, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
       'Content-Type': 'application/json',
+      'HTTP-Referer': Deno.env.get('SUPABASE_URL') || 'https://supabase.com',
+      'X-Title': 'Torsor Outreach Tool',
     },
     body: JSON.stringify({
-      model: 'llama-3.1-sonar-large-128k-online',
+      model: MODEL,
       messages: [
         {
           role: 'system',
@@ -44,7 +47,8 @@ async function callPerplexity(prompt: string): Promise<string> {
   })
 
   if (!response.ok) {
-    throw new Error(`Perplexity API error: ${response.statusText}`)
+    const errorText = await response.text()
+    throw new Error(`OpenRouter API error: ${response.status} ${response.statusText} - ${errorText}`)
   }
 
   const data = await response.json()
