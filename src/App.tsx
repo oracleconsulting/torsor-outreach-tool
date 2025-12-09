@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { RouterProvider, createRouter, createRootRoute, createRoute, Outlet, redirect } from '@tanstack/react-router'
+import { RouterProvider, createRouter, createRootRoute, createRoute, Outlet, redirect, useLocation } from '@tanstack/react-router'
 import { Navigation } from './components/layout/Navigation'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -32,22 +32,26 @@ async function checkAuth(): Promise<boolean> {
 // Root route with layout
 const rootRoute = createRootRoute({
   component: () => {
-    const location = window.location.pathname
-    // Don't show navigation on login page
-    if (location === '/login') {
-      return <Outlet />
-    }
-    
-    return (
-      <div className="min-h-screen bg-background">
-        <Navigation />
-        <main className="container mx-auto px-4 py-8">
-          <Outlet />
-        </main>
-      </div>
-    )
+    return <RootComponent />
   },
 })
+
+function RootComponent() {
+  const location = useLocation()
+  // Don't show navigation on login page
+  if (location.pathname === '/login') {
+    return <Outlet />
+  }
+  
+  return (
+    <div className="min-h-screen bg-background">
+      <Navigation />
+      <main className="container mx-auto px-4 py-8">
+        <Outlet />
+      </main>
+    </div>
+  )
+}
 
 // Login route (standalone, no navigation)
 const loginRoute = createRoute({
