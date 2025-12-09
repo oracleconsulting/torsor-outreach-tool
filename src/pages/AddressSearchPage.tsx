@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AddressSearchForm } from '../components/search/AddressSearchForm'
 import { SearchResults } from '../components/search/SearchResults'
+import { CompanyModal } from '../components/company/CompanyModal'
 import { useSaveProspect } from '../hooks/useProspects'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
