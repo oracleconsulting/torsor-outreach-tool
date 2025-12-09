@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { keepPreviousData } from '@tanstack/react-query'
 import { companiesHouse } from '../services/companiesHouse'
-import type { Company, FirmDiscoveryParams, SearchOptions } from '../types'
+import type { FirmDiscoveryParams, SearchOptions } from '../types'
 
 export function useCompany(companyNumber: string | undefined) {
   return useQuery({
