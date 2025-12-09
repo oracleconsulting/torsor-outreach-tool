@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createRouter, createRootRoute, createRoute, Outlet, redirect, useLocation } from '@tanstack/react-router'
 import { Navigation } from './components/layout/Navigation'
+import { Toaster } from './components/ui/Toaster'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { FirmSearchPage } from './pages/FirmSearchPage'
@@ -135,6 +136,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <Toaster />
     </QueryClientProvider>
   )
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
 import { FirmSearchForm } from '../components/search/FirmSearchForm'
 import { SearchResults } from '../components/search/SearchResults'
 import { CompanyModal } from '../components/company/CompanyModal'
@@ -47,12 +48,12 @@ export function FirmSearchPage() {
         discovery_address: discoveryResults.firm.registered_address,
         discovered_via_firm: discoveryResults.firm.company_number,
       })
-      alert('Prospect saved successfully!')
+      toast.success('Prospect saved successfully!')
     } catch (error: any) {
       if (error.message.includes('already exists')) {
-        alert('This prospect has already been saved.')
+        toast.error('This prospect has already been saved.')
       } else {
-        alert('Error saving prospect: ' + error.message)
+        toast.error('Error saving prospect: ' + error.message)
       }
     }
   }

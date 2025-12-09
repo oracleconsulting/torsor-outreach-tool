@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
 import { AddressSearchForm } from '../components/search/AddressSearchForm'
 import { SearchResults } from '../components/search/SearchResults'
 import { CompanyModal } from '../components/company/CompanyModal'
@@ -80,7 +81,7 @@ export function AddressSearchPage() {
 
   const handleSaveProspect = async (companyNumber: string) => {
     if (!practiceId) {
-      alert('Please log in to save prospects')
+      toast.error('Please log in to save prospects')
       return
     }
 
@@ -99,12 +100,12 @@ export function AddressSearchPage() {
           ? `${company.registered_office_address.address_line_1}, ${company.registered_office_address.postal_code}`
           : undefined,
       })
-      alert('Prospect saved successfully!')
+      toast.success('Prospect saved successfully!')
     } catch (error: any) {
       if (error.message.includes('already exists')) {
-        alert('This prospect has already been saved.')
+        toast.error('This prospect has already been saved.')
       } else {
-        alert('Error saving prospect: ' + error.message)
+        toast.error('Error saving prospect: ' + error.message)
       }
     }
   }

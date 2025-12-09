@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
 import { useCovenants, useCreateCovenant, useDeactivateCovenant } from '../hooks/useCovenants'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
@@ -51,7 +52,7 @@ export function CovenantsPage() {
         notes: '',
       })
     } catch (error) {
-      alert('Error creating covenant: ' + (error as Error).message)
+      toast.error('Error creating covenant: ' + (error as Error).message)
     }
   }
 
@@ -60,7 +61,7 @@ export function CovenantsPage() {
     try {
       await deactivateCovenant.mutateAsync(id)
     } catch (error) {
-      alert('Error deactivating covenant: ' + (error as Error).message)
+      toast.error('Error deactivating covenant: ' + (error as Error).message)
     }
   }
 

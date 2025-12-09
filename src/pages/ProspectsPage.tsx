@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
 import { useProspects, useUpdateProspect, useDeleteProspect } from '../hooks/useProspects'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
@@ -42,7 +43,7 @@ export function ProspectsPage() {
       a.click()
       URL.revokeObjectURL(url)
     } catch (error) {
-      alert('Error exporting prospects: ' + (error as Error).message)
+      toast.error('Error exporting prospects: ' + (error as Error).message)
     }
   }
 
@@ -50,7 +51,7 @@ export function ProspectsPage() {
     try {
       await updateProspect.mutateAsync({ id, updates: { status: newStatus } })
     } catch (error) {
-      alert('Error updating prospect: ' + (error as Error).message)
+      toast.error('Error updating prospect: ' + (error as Error).message)
     }
   }
 
@@ -59,7 +60,7 @@ export function ProspectsPage() {
     try {
       await deleteProspect.mutateAsync(id)
     } catch (error) {
-      alert('Error deleting prospect: ' + (error as Error).message)
+      toast.error('Error deleting prospect: ' + (error as Error).message)
     }
   }
 

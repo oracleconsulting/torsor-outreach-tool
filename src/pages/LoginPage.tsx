@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from '@tanstack/react-router'
 import { Building2, Loader2 } from 'lucide-react'
@@ -33,15 +34,20 @@ export function LoginPage() {
 
         if (memberError || !memberData) {
           await supabase.auth.signOut()
-          setError('You do not have access to this application. Please contact your administrator.')
+          const errorMsg = 'You do not have access to this application. Please contact your administrator.'
+          setError(errorMsg)
+          toast.error(errorMsg)
           return
         }
 
         // Redirect to dashboard
+        toast.success('Signed in successfully!')
         navigate({ to: '/' })
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to sign in. Please check your credentials.')
+      const errorMsg = err.message || 'Failed to sign in. Please check your credentials.'
+      setError(errorMsg)
+      toast.error(errorMsg)
     } finally {
       setIsLoading(false)
     }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
 import { useSearchHistory, useDeleteSearch } from '../hooks/useSearchHistory'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
