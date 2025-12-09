@@ -1,5 +1,6 @@
-import { Link, useLocation } from '@tanstack/react-router'
-import { Building2, Search, MapPin, Users, Shield, History } from 'lucide-react'
+import { Link, useLocation, useNavigate } from '@tanstack/react-router'
+import { Building2, Search, MapPin, Users, Shield, History, LogOut } from 'lucide-react'
+import { useAuth } from '../../hooks/useAuth'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: Building2 },
@@ -12,6 +13,13 @@ const navItems = [
 
 export function Navigation() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, signOut } = useAuth()
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate({ to: '/login' })
+  }
 
   return (
     <nav className="border-b bg-white">
@@ -43,6 +51,23 @@ export function Navigation() {
                 )
               })}
             </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {user && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 hidden sm:inline">
+                  {user.email}
+                </span>
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">Sign Out</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
