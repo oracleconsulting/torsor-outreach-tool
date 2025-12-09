@@ -35,11 +35,20 @@ BEGIN
     RAISE EXCEPTION 'No practice found. Please create a practice first.';
   END IF;
   
-  -- Add user to practice_members
-  INSERT INTO practice_members (practice_id, user_id, role)
-  VALUES (v_practice_id, v_user_id, 'member')
-  ON CONFLICT (practice_id, user_id) DO UPDATE
-  SET role = 'member';
+  -- Check if user is already a member
+  IF NOT EXISTS (
+    SELECT 1 FROM practice_members 
+    WHERE practice_id = v_practice_id AND user_id = v_user_id
+  ) THEN
+    -- Add user to practice_members
+    INSERT INTO practice_members (practice_id, user_id, role)
+    VALUES (v_practice_id, v_user_id, 'member');
+  ELSE
+    -- Update role if already exists
+    UPDATE practice_members
+    SET role = 'member'
+    WHERE practice_id = v_practice_id AND user_id = v_user_id;
+  END IF;
   
   RAISE NOTICE 'Access granted to jhoward@rpgcc.co.uk for practice %', v_practice_id;
 END $$;
