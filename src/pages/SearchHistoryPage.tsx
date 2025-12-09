@@ -37,8 +37,9 @@ export function SearchHistoryPage() {
     if (!confirm('Are you sure you want to delete this search?')) return
     try {
       await deleteSearch.mutateAsync(id)
+      toast.success('Search deleted successfully')
     } catch (error) {
-      alert('Error deleting search: ' + (error as Error).message)
+      toast.error('Error deleting search: ' + (error as Error).message)
     }
   }
 

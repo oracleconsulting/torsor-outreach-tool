@@ -60,6 +60,7 @@ export function CovenantsPage() {
     if (!confirm('Are you sure you want to deactivate this covenant?')) return
     try {
       await deactivateCovenant.mutateAsync(id)
+      toast.success('Covenant deactivated successfully')
     } catch (error) {
       toast.error('Error deactivating covenant: ' + (error as Error).message)
     }
