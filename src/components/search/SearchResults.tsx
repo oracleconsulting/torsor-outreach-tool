@@ -134,7 +134,7 @@ export function SearchResults({ results, onSaveProspect, onViewCompany }: Search
                     onClick={() => onViewCompany?.(result.company_number)}
                     className="text-primary hover:text-primary/80 mr-4"
                   >
-                    View
+                    View Details
                   </button>
                   <button
                     onClick={() => onSaveProspect?.(result.company_number)}

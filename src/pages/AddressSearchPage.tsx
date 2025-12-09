@@ -11,6 +11,7 @@ export function AddressSearchPage() {
   const [practiceId, setPracticeId] = useState<string | undefined>()
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null)
   const saveProspect = useSaveProspect()
 
   useEffect(() => {
@@ -107,6 +108,17 @@ export function AddressSearchPage() {
     }
   }
 
+  const handleViewCompany = (companyNumber: string) => {
+    setSelectedCompany(companyNumber)
+  }
+
+  const handleSaveFromModal = async () => {
+    if (selectedCompany) {
+      await handleSaveProspect(selectedCompany)
+      setSelectedCompany(null)
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -138,6 +150,7 @@ export function AddressSearchPage() {
               <SearchResults
                 results={searchResults}
                 onSaveProspect={handleSaveProspect}
+                onViewCompany={handleViewCompany}
               />
             ) : (
               <div className="text-center py-12 text-gray-500">
@@ -147,6 +160,15 @@ export function AddressSearchPage() {
           </div>
         </div>
       </div>
+
+      {selectedCompany && (
+        <CompanyModal
+          companyNumber={selectedCompany}
+          isOpen={!!selectedCompany}
+          onClose={() => setSelectedCompany(null)}
+          onSaveProspect={handleSaveFromModal}
+        />
+      )}
     </div>
   )
 }

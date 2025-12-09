@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { FirmSearchForm } from '../components/search/FirmSearchForm'
 import { SearchResults } from '../components/search/SearchResults'
+import { CompanyModal } from '../components/company/CompanyModal'
 import { useFirmDiscovery } from '../hooks/useCompaniesHouse'
 import { useSaveProspect } from '../hooks/useProspects'
 import { useAuth } from '../hooks/useAuth'
@@ -11,6 +12,7 @@ export function FirmSearchPage() {
   const { user } = useAuth()
   const [practiceId, setPracticeId] = useState<string | undefined>()
   const [discoveryResults, setDiscoveryResults] = useState<FirmDiscoveryResult | null>(null)
+  const [selectedCompany, setSelectedCompany] = useState<string | null>(null)
   const firmDiscovery = useFirmDiscovery()
   const saveProspect = useSaveProspect()
 
@@ -55,6 +57,17 @@ export function FirmSearchPage() {
     }
   }
 
+  const handleViewCompany = (companyNumber: string) => {
+    setSelectedCompany(companyNumber)
+  }
+
+  const handleSaveFromModal = async () => {
+    if (selectedCompany) {
+      await handleSaveProspect(selectedCompany)
+      setSelectedCompany(null)
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -93,6 +106,7 @@ export function FirmSearchPage() {
           <SearchResults
             results={discoveryResults.companies}
             onSaveProspect={handleSaveProspect}
+            onViewCompany={handleViewCompany}
           />
         </div>
       )}
@@ -101,6 +115,15 @@ export function FirmSearchPage() {
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
           Error: {firmDiscovery.error?.message || 'Failed to discover firm clients'}
         </div>
+      )}
+
+      {selectedCompany && (
+        <CompanyModal
+          companyNumber={selectedCompany}
+          isOpen={!!selectedCompany}
+          onClose={() => setSelectedCompany(null)}
+          onSaveProspect={handleSaveFromModal}
+        />
       )}
     </div>
   )
