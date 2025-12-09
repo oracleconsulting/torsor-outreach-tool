@@ -18,19 +18,17 @@
 ## ⏳ To Be Created
 
 ### Phase 3
-4. **`build-director-network`**
-   - Code: Create `supabase/functions/build-director-network/index.ts`
-   - See: Phase 3 implementation plan
+4. **`build-director-network`** ✅ **CREATED**
+   - Code: [`supabase/functions/build-director-network/index.ts`](supabase/functions/build-director-network/index.ts)
 
 ### Phase 4
-5. **`detect-events`**
-   - Code: Create `supabase/functions/detect-events/index.ts`
-   - See: Phase 4 implementation plan
+5. **`detect-events`** ✅ **CREATED**
+   - Code: [`supabase/functions/detect-events/index.ts`](supabase/functions/detect-events/index.ts)
+   - Schedule: Daily via Supabase CRON
 
-6. **`generate-outreach`**
-   - Code: Create `supabase/functions/generate-outreach/index.ts`
+6. **`generate-outreach`** ✅ **CREATED**
+   - Code: [`supabase/functions/generate-outreach/index.ts`](supabase/functions/generate-outreach/index.ts)
    - Env: `OPENROUTER_API_KEY`
-   - See: Phase 4 implementation plan
 
 ### Phase 5
 7. **`detect-switch-signals`**
