@@ -1,15 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import toast from 'react-hot-toast'
+import { Search, CheckCircle, Shield, Download, ChevronDown } from 'lucide-react'
 import { useProspects, useUpdateProspect, useDeleteProspect } from '../hooks/useProspects'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import { prospects } from '../services/prospects'
-import type { ProspectStatus } from '../types'
+import { BulkEnrichmentModal } from '../components/enrichment/BulkEnrichmentModal'
+import { AddressStatusCell } from '../components/enrichment/AddressStatusCell'
+import type { ProspectStatus, Prospect } from '../types'
+import type { CompanyForEnrichment } from '../types/enrichment'
 
 export function ProspectsPage() {
   const { user } = useAuth()
   const [practiceId, setPracticeId] = useState<string | undefined>()
   const [selectedStatus, setSelectedStatus] = useState<ProspectStatus[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [enrichmentModalOpen, setEnrichmentModalOpen] = useState(false)
+  const [enrichmentOperation, setEnrichmentOperation] = useState<'find' | 'confirm'>('find')
+  const [companiesToEnrich, setCompaniesToEnrich] = useState<CompanyForEnrichment[]>([])
 
   useEffect(() => {
     const getPracticeId = async () => {
@@ -64,6 +72,73 @@ export function ProspectsPage() {
     }
   }
 
+  const handleEnrichSelected = (operation: 'find' | 'confirm') => {
+    if (selectedIds.size === 0) return
+
+    const selectedProspects = prospectsList?.filter((p) => selectedIds.has(p.id)) || []
+    const companies: CompanyForEnrichment[] = selectedProspects.map((p) => ({
+      company_number: p.company_number,
+      company_name: (p as any).companies?.company_name || p.company_number,
+      registered_address: (p as any).companies?.registered_office_address,
+      trading_address: p.enriched_address,
+      enrichment_status: p.enrichment_status,
+    }))
+
+    setCompaniesToEnrich(companies)
+    setEnrichmentOperation(operation)
+    setEnrichmentModalOpen(true)
+  }
+
+  const handleUpdateProspects = async (results: Map<string, any>) => {
+    if (!practiceId) return
+
+    let updated = 0
+    for (const [companyNumber, result] of results.entries()) {
+      const prospect = prospectsList?.find((p) => p.company_number === companyNumber)
+      if (!prospect) continue
+
+      try {
+        const updates: any = {}
+
+        if (result.operation === 'find' && result.success) {
+          updates.enrichment_status = 'found'
+          updates.enriched_address = result.bestAddress
+          updates.enrichment_confidence = result.confidence
+          updates.enrichment_date = new Date().toISOString()
+        } else if (result.operation === 'confirm') {
+          if (result.confirmationResult === 'confirmed' || result.confirmationResult === 'likely_valid') {
+            updates.address_confirmed = true
+            updates.confirmation_date = new Date().toISOString()
+            updates.enrichment_status = 'confirmed'
+          } else if (result.confirmationResult === 'invalid') {
+            updates.enrichment_status = 'invalid'
+          }
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await updateProspect.mutateAsync({ id: prospect.id, updates })
+          updated++
+        }
+      } catch (error) {
+        console.error('Error updating prospect:', error)
+      }
+    }
+
+    toast.success(`Updated ${updated} prospects`)
+    setEnrichmentModalOpen(false)
+    setSelectedIds(new Set())
+  }
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds)
+    if (newSelected.has(id)) {
+      newSelected.delete(id)
+    } else {
+      newSelected.add(id)
+    }
+    setSelectedIds(newSelected)
+  }
+
   if (isLoading) {
     return <div className="text-center py-12">Loading prospects...</div>
   }
@@ -81,6 +156,64 @@ export function ProspectsPage() {
         >
           Export CSV
         </button>
+      </div>
+
+      {/* Enrichment Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg border p-4">
+          <p className="text-sm text-gray-500">Total</p>
+          <p className="text-2xl font-bold">{enrichmentStats.total}</p>
+        </div>
+        <div className="bg-white rounded-lg border p-4">
+          <p className="text-sm text-gray-500">Has Address</p>
+          <p className="text-2xl font-bold text-green-600">{enrichmentStats.withAddress}</p>
+        </div>
+        <div className="bg-white rounded-lg border p-4">
+          <p className="text-sm text-gray-500">Needs Enrichment</p>
+          <p className="text-2xl font-bold text-yellow-600">{enrichmentStats.needsEnrichment}</p>
+        </div>
+        <div className="bg-white rounded-lg border p-4">
+          <p className="text-sm text-gray-500">No Address</p>
+          <p className="text-2xl font-bold text-red-600">{enrichmentStats.noAddress}</p>
+        </div>
+      </div>
+
+      {/* Bulk Actions */}
+      <div className="bg-white rounded-lg border p-4">
+        <div className="flex items-center gap-4">
+          {selectedIds.size > 0 && (
+            <span className="text-sm text-gray-600">{selectedIds.size} selected</span>
+          )}
+
+          <button
+            onClick={() => handleEnrichSelected('find')}
+            disabled={selectedIds.size === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          >
+            <Search className="h-4 w-4" />
+            Find Addresses
+          </button>
+
+          <button
+            onClick={() => handleEnrichSelected('confirm')}
+            disabled={selectedIds.size === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          >
+            <CheckCircle className="h-4 w-4" />
+            Confirm Addresses
+          </button>
+
+          <div className="flex-1" />
+
+          <button
+            onClick={() => handleEnrichSelected('find')}
+            disabled={needsEnrichment.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          >
+            <Search className="h-4 w-4" />
+            Enrich All Needing ({needsEnrichment.length})
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border p-6">
@@ -109,9 +242,24 @@ export function ProspectsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === prospectsList.length && prospectsList.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedIds(new Set(prospectsList.map((p) => p.id)))
+                        } else {
+                          setSelectedIds(new Set())
+                        }
+                      }}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Company</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -120,6 +268,14 @@ export function ProspectsPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {prospectsList.map((prospect) => (
                   <tr key={prospect.id}>
+                    <td className="px-4 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(prospect.id)}
+                        onChange={() => toggleSelect(prospect.id)}
+                        className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                      />
+                    </td>
                     <td className="px-4 py-4">
                       <div className="font-medium">{prospect.company_number}</div>
                       <div className="text-sm text-gray-500">{(prospect as any).companies?.company_name}</div>
@@ -138,6 +294,15 @@ export function ProspectsPage() {
                         <option value="converted">Converted</option>
                         <option value="rejected">Rejected</option>
                       </select>
+                    </td>
+                    <td className="px-4 py-4">
+                      <AddressStatusCell
+                        result={{
+                          ...prospect,
+                          company_name: (prospect as any).companies?.company_name || prospect.company_number,
+                          registered_office_address: (prospect as any).companies?.registered_office_address,
+                        } as any}
+                      />
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500">{prospect.discovery_source}</td>
                     <td className="px-4 py-4 text-sm text-gray-500">
@@ -162,6 +327,20 @@ export function ProspectsPage() {
           </div>
         )}
       </div>
+
+      {enrichmentModalOpen && (
+        <BulkEnrichmentModal
+          isOpen={enrichmentModalOpen}
+          onClose={() => {
+            setEnrichmentModalOpen(false)
+            setCompaniesToEnrich([])
+          }}
+          companies={companiesToEnrich}
+          operation={enrichmentOperation}
+          source="prospects"
+          onUpdateProspects={handleUpdateProspects}
+        />
+      )}
     </div>
   )
 }

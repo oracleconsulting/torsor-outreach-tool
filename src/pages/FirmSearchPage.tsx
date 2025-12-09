@@ -3,17 +3,21 @@ import toast from 'react-hot-toast'
 import { FirmSearchForm } from '../components/search/FirmSearchForm'
 import { SearchResults } from '../components/search/SearchResults'
 import { CompanyModal } from '../components/company/CompanyModal'
+import { BulkEnrichmentModal } from '../components/enrichment/BulkEnrichmentModal'
 import { useFirmDiscovery } from '../hooks/useCompaniesHouse'
 import { useSaveProspect } from '../hooks/useProspects'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
-import type { FirmDiscoveryResult } from '../types'
+import type { FirmDiscoveryResult, SearchResult } from '../types'
+import type { CompanyForEnrichment } from '../types/enrichment'
 
 export function FirmSearchPage() {
   const { user } = useAuth()
   const [practiceId, setPracticeId] = useState<string | undefined>()
   const [discoveryResults, setDiscoveryResults] = useState<FirmDiscoveryResult | null>(null)
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null)
+  const [enrichmentModalOpen, setEnrichmentModalOpen] = useState(false)
+  const [companiesToEnrich, setCompaniesToEnrich] = useState<CompanyForEnrichment[]>([])
   const firmDiscovery = useFirmDiscovery()
   const saveProspect = useSaveProspect()
 
@@ -69,6 +73,56 @@ export function FirmSearchPage() {
     }
   }
 
+  const handleEnrichCompanies = (companyNumbers: string[]) => {
+    if (!discoveryResults) return
+
+    const companies: CompanyForEnrichment[] = companyNumbers
+      .map((num) => {
+        const result = discoveryResults.companies.find((c) => c.company_number === num)
+        if (!result) return null
+
+        return {
+          company_number: result.company_number,
+          company_name: result.company_name,
+          registered_address: result.registered_office_address,
+          enrichment_status: result.enrichment_status,
+        }
+      })
+      .filter((c): c is CompanyForEnrichment => c !== null)
+
+    setCompaniesToEnrich(companies)
+    setEnrichmentModalOpen(true)
+  }
+
+  const handleSaveEnrichedProspects = async (companyNumbers: string[]) => {
+    if (!practiceId || !discoveryResults) return
+
+    for (const companyNumber of companyNumbers) {
+      const company = discoveryResults.companies.find((c) => c.company_number === companyNumber)
+      if (!company) continue
+
+      try {
+        await saveProspect.mutateAsync({
+          practice_id: practiceId,
+          company_number: companyNumber,
+          prospect_score: company.prospect_score,
+          score_factors: company.score_factors,
+          status: 'new',
+          discovery_source: 'firm_search',
+          discovery_address: discoveryResults.firm.registered_address,
+          discovered_via_firm: discoveryResults.firm.company_number,
+        })
+      } catch (error: any) {
+        if (!error.message.includes('already exists')) {
+          console.error('Error saving prospect:', error)
+        }
+      }
+    }
+
+    toast.success(`Saved ${companyNumbers.length} prospects`)
+    setEnrichmentModalOpen(false)
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -108,6 +162,7 @@ export function FirmSearchPage() {
             results={discoveryResults.companies}
             onSaveProspect={handleSaveProspect}
             onViewCompany={handleViewCompany}
+            onEnrichCompanies={handleEnrichCompanies}
           />
         </div>
       )}
@@ -124,6 +179,20 @@ export function FirmSearchPage() {
           isOpen={!!selectedCompany}
           onClose={() => setSelectedCompany(null)}
           onSaveProspect={handleSaveFromModal}
+        />
+      )}
+
+      {enrichmentModalOpen && (
+        <BulkEnrichmentModal
+          isOpen={enrichmentModalOpen}
+          onClose={() => {
+            setEnrichmentModalOpen(false)
+            setCompaniesToEnrich([])
+          }}
+          companies={companiesToEnrich}
+          operation="find"
+          source="search_results"
+          onSaveProspects={handleSaveEnrichedProspects}
         />
       )}
     </div>

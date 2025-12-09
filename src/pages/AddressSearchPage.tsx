@@ -3,10 +3,12 @@ import toast from 'react-hot-toast'
 import { AddressSearchForm } from '../components/search/AddressSearchForm'
 import { SearchResults } from '../components/search/SearchResults'
 import { CompanyModal } from '../components/company/CompanyModal'
+import { BulkEnrichmentModal } from '../components/enrichment/BulkEnrichmentModal'
 import { useSaveProspect } from '../hooks/useProspects'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import type { Company, SearchResult } from '../types'
+import type { CompanyForEnrichment } from '../types/enrichment'
 
 export function AddressSearchPage() {
   const { user } = useAuth()
@@ -14,6 +16,8 @@ export function AddressSearchPage() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null)
+  const [enrichmentModalOpen, setEnrichmentModalOpen] = useState(false)
+  const [companiesToEnrich, setCompaniesToEnrich] = useState<CompanyForEnrichment[]>([])
   const saveProspect = useSaveProspect()
 
   useEffect(() => {
@@ -121,6 +125,55 @@ export function AddressSearchPage() {
     }
   }
 
+  const handleEnrichCompanies = (companyNumbers: string[]) => {
+    const companies: CompanyForEnrichment[] = companyNumbers
+      .map((num) => {
+        const result = searchResults.find((c) => c.company_number === num)
+        if (!result) return null
+
+        return {
+          company_number: result.company_number,
+          company_name: result.company_name,
+          registered_address: result.registered_office_address,
+          enrichment_status: result.enrichment_status,
+        }
+      })
+      .filter((c): c is CompanyForEnrichment => c !== null)
+
+    setCompaniesToEnrich(companies)
+    setEnrichmentModalOpen(true)
+  }
+
+  const handleSaveEnrichedProspects = async (companyNumbers: string[]) => {
+    if (!practiceId) return
+
+    for (const companyNumber of companyNumbers) {
+      const company = searchResults.find((c) => c.company_number === companyNumber)
+      if (!company) continue
+
+      try {
+        await saveProspect.mutateAsync({
+          practice_id: practiceId,
+          company_number: companyNumber,
+          prospect_score: company.prospect_score,
+          score_factors: company.score_factors,
+          status: 'new',
+          discovery_source: 'address_search',
+          discovery_address: company.registered_office_address
+            ? `${company.registered_office_address.address_line_1}, ${company.registered_office_address.postal_code}`
+            : undefined,
+        })
+      } catch (error: any) {
+        if (!error.message.includes('already exists')) {
+          console.error('Error saving prospect:', error)
+        }
+      }
+    }
+
+    toast.success(`Saved ${companyNumbers.length} prospects`)
+    setEnrichmentModalOpen(false)
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -153,6 +206,7 @@ export function AddressSearchPage() {
                 results={searchResults}
                 onSaveProspect={handleSaveProspect}
                 onViewCompany={handleViewCompany}
+                onEnrichCompanies={handleEnrichCompanies}
               />
             ) : (
               <div className="text-center py-12 text-gray-500">
@@ -169,6 +223,20 @@ export function AddressSearchPage() {
           isOpen={!!selectedCompany}
           onClose={() => setSelectedCompany(null)}
           onSaveProspect={handleSaveFromModal}
+        />
+      )}
+
+      {enrichmentModalOpen && (
+        <BulkEnrichmentModal
+          isOpen={enrichmentModalOpen}
+          onClose={() => {
+            setEnrichmentModalOpen(false)
+            setCompaniesToEnrich([])
+          }}
+          companies={companiesToEnrich}
+          operation="find"
+          source="search_results"
+          onSaveProspects={handleSaveEnrichedProspects}
         />
       )}
     </div>

@@ -48,6 +48,12 @@ export interface SearchResult extends Company {
   score_factors: Record<string, number>
   is_covenant_safe: boolean
   covenant_firm_name?: string
+  // Enrichment fields
+  has_trading_address?: boolean
+  address_quality?: 'excellent' | 'good' | 'needs_enrichment' | 'unusable'
+  enrichment_status?: 'not_attempted' | 'pending' | 'found' | 'not_found' | 'confirmed' | 'invalid'
+  enriched_address?: any
+  enrichment_confidence?: number
 }
 
 export type ProspectStatus = 'new' | 'researched' | 'contacted' | 'responded' | 'converted' | 'rejected'

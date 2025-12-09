@@ -1,14 +1,16 @@
 import { useState } from 'react'
-import { CheckCircle2, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, Search as SearchIcon, Save } from 'lucide-react'
 import type { SearchResult } from '../../types'
+import { AddressStatusCell } from '../enrichment/AddressStatusCell'
 
 interface SearchResultsProps {
   results: SearchResult[]
   onSaveProspect?: (companyNumber: string) => void
   onViewCompany?: (companyNumber: string) => void
+  onEnrichCompanies?: (companyNumbers: string[]) => void
 }
 
-export function SearchResults({ results, onSaveProspect, onViewCompany }: SearchResultsProps) {
+export function SearchResults({ results, onSaveProspect, onViewCompany, onEnrichCompanies }: SearchResultsProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const toggleSelect = (companyNumber: string) => {
@@ -37,20 +39,35 @@ export function SearchResults({ results, onSaveProspect, onViewCompany }: Search
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-gray-600">
           Found {results.length} {results.length === 1 ? 'company' : 'companies'}
         </p>
         {selected.size > 0 && (
-          <button
-            onClick={() => {
-              selected.forEach((num) => onSaveProspect?.(num))
-              setSelected(new Set())
-            }}
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm"
-          >
-            Save {selected.size} Selected
-          </button>
+          <div className="flex gap-2">
+            {onEnrichCompanies && (
+              <button
+                onClick={() => {
+                  onEnrichCompanies(Array.from(selected))
+                  setSelected(new Set())
+                }}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm"
+              >
+                <SearchIcon className="h-4 w-4" />
+                Find Addresses ({selected.size})
+              </button>
+            )}
+            <button
+              onClick={() => {
+                selected.forEach((num) => onSaveProspect?.(num))
+                setSelected(new Set())
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 text-sm"
+            >
+              <Save className="h-4 w-4" />
+              Save {selected.size} Selected
+            </button>
+          </div>
         )}
       </div>
 
@@ -83,6 +100,9 @@ export function SearchResults({ results, onSaveProspect, onViewCompany }: Search
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Covenant
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Address Status
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
@@ -128,6 +148,12 @@ export function SearchResults({ results, onSaveProspect, onViewCompany }: Search
                       <span className="text-xs">Restricted</span>
                     </div>
                   )}
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap">
+                  <AddressStatusCell
+                    result={result}
+                    onEnrich={() => onEnrichCompanies?.([result.company_number])}
+                  />
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap text-sm">
                   <button
