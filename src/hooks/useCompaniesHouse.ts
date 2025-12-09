@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData } from '@tanstack/react-query'
 import { companiesHouse } from '../services/companiesHouse'
-import type { Company, Officer, Filing, FirmDiscoveryParams, SearchOptions } from '../types'
+import type { Company, FirmDiscoveryParams, SearchOptions } from '../types'
 
 export function useCompany(companyNumber: string | undefined) {
   return useQuery({
@@ -34,7 +35,7 @@ export function useCompanySearch(query: string, options?: SearchOptions) {
     queryKey: ['company-search', query, options],
     queryFn: () => companiesHouse.searchCompanies(query, options),
     enabled: query.length >= 2,
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
     staleTime: 2 * 60 * 1000, // 2 minutes for search results
   })
 }

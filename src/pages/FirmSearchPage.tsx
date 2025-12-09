@@ -5,7 +5,7 @@ import { useFirmDiscovery } from '../hooks/useCompaniesHouse'
 import { useSaveProspect } from '../hooks/useProspects'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
-import type { FirmDiscoveryResult, SearchResult } from '../types'
+import type { FirmDiscoveryResult } from '../types'
 
 export function FirmSearchPage() {
   const { user } = useAuth()

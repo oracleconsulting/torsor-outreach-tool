@@ -1,11 +1,11 @@
 import { supabase } from '../lib/supabase'
-import type { Prospect, ProspectFilters, NewProspect, ProspectUpdate, BulkResult, Company } from '../types'
+import type { Prospect, ProspectFilters, NewProspect, ProspectUpdate, BulkResult } from '../types'
 
 export const prospects = {
   async getProspects(practiceId: string, filters?: ProspectFilters): Promise<Prospect[]> {
     let query = supabase
       .from('outreach.prospects')
-      .select('*, outreach.companies(*)')
+      .select('*')
       .eq('practice_id', practiceId)
       .order('prospect_score', { ascending: false })
       .order('created_at', { ascending: false })
@@ -39,7 +39,7 @@ export const prospects = {
   async getProspect(id: string): Promise<Prospect> {
     const { data, error } = await supabase
       .from('outreach.prospects')
-      .select('*, outreach.companies(*)')
+      .select('*')
       .eq('id', id)
       .single()
 
@@ -63,7 +63,7 @@ export const prospects = {
     const { data, error } = await supabase
       .from('outreach.prospects')
       .insert(prospect)
-      .select('*, outreach.companies(*)')
+      .select('*')
       .single()
 
     if (error) throw error
@@ -74,10 +74,10 @@ export const prospects = {
     const updateData: any = { ...updates }
 
     // Auto-update timestamps based on status
-    if (updates.status === 'contacted' && !updates.contacted_at) {
+    if (updates.status === 'contacted') {
       updateData.contacted_at = new Date().toISOString()
     }
-    if (updates.status === 'converted' && !updates.converted_at) {
+    if (updates.status === 'converted') {
       updateData.converted_at = new Date().toISOString()
     }
 
@@ -85,7 +85,7 @@ export const prospects = {
       .from('outreach.prospects')
       .update(updateData)
       .eq('id', id)
-      .select('*, outreach.companies(*)')
+      .select('*')
       .single()
 
     if (error) throw error

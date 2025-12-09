@@ -141,6 +141,8 @@ export interface ProspectUpdate {
   primary_contact_name?: string
   primary_contact_email?: string
   primary_contact_phone?: string
+  contacted_at?: string
+  converted_at?: string
 }
 
 export interface BulkResult {

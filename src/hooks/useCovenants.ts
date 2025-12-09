@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { covenants } from '../services/covenants'
-import type { Covenant, NewCovenant, CovenantUpdate } from '../types'
+import type { NewCovenant, CovenantUpdate } from '../types'
 
 export function useCovenants(practiceId: string | undefined, includeExpired = false) {
   return useQuery({

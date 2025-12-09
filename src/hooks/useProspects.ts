@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { prospects } from '../services/prospects'
-import type { Prospect, ProspectFilters, NewProspect, ProspectUpdate } from '../types'
+import type { ProspectFilters, NewProspect, ProspectUpdate } from '../types'
 
 export function useProspects(practiceId: string | undefined, filters?: ProspectFilters) {
   return useQuery({

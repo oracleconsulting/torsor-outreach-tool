@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { Company, Officer, Filing, SearchResult, FirmDiscoveryResult, FirmDiscoveryParams, SearchOptions, ApiError } from '../types'
+import type { Company, Officer, Filing, FirmDiscoveryResult, FirmDiscoveryParams, SearchOptions } from '../types'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 
