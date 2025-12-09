@@ -75,6 +75,14 @@ export interface Prospect {
   created_at: string
   contacted_at?: string
   converted_at?: string
+  // Enrichment fields
+  enrichment_status?: 'not_attempted' | 'pending' | 'found' | 'not_found' | 'confirmed' | 'invalid'
+  enriched_address?: any
+  enrichment_confidence?: number
+  enrichment_source?: string
+  enrichment_date?: string
+  address_confirmed?: boolean
+  confirmation_date?: string
 }
 
 export interface Covenant {
