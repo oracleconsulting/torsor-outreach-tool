@@ -148,31 +148,36 @@ ALTER TABLE outreach.practice_capabilities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE outreach.prospect_fit_scores ENABLE ROW LEVEL SECURITY;
 
 -- Directors: Read-only for practice members
-CREATE POLICY IF NOT EXISTS "Directors visible to practice members"
+DROP POLICY IF EXISTS "Directors visible to practice members" ON outreach.directors;
+CREATE POLICY "Directors visible to practice members"
 ON outreach.directors FOR SELECT
 USING (true);
 
 -- Director appointments: Read-only for practice members
-CREATE POLICY IF NOT EXISTS "Appointments visible to practice members"
+DROP POLICY IF EXISTS "Appointments visible to practice members" ON outreach.director_appointments;
+CREATE POLICY "Appointments visible to practice members"
 ON outreach.director_appointments FOR SELECT
 USING (true);
 
 -- Director networks: Full access for practice members
-CREATE POLICY IF NOT EXISTS "Networks visible to practice members"
+DROP POLICY IF EXISTS "Networks visible to practice members" ON outreach.director_networks;
+CREATE POLICY "Networks visible to practice members"
 ON outreach.director_networks FOR ALL
 USING (practice_id IN (
     SELECT practice_id FROM practice_members WHERE user_id = auth.uid()
 ));
 
 -- Practice capabilities: Full access for practice members
-CREATE POLICY IF NOT EXISTS "Capabilities visible to practice members"
+DROP POLICY IF EXISTS "Capabilities visible to practice members" ON outreach.practice_capabilities;
+CREATE POLICY "Capabilities visible to practice members"
 ON outreach.practice_capabilities FOR ALL
 USING (practice_id IN (
     SELECT practice_id FROM practice_members WHERE user_id = auth.uid()
 ));
 
 -- Fit scores: Full access for practice members
-CREATE POLICY IF NOT EXISTS "Fit scores visible to practice members"
+DROP POLICY IF EXISTS "Fit scores visible to practice members" ON outreach.prospect_fit_scores;
+CREATE POLICY "Fit scores visible to practice members"
 ON outreach.prospect_fit_scores FOR ALL
 USING (practice_id IN (
     SELECT practice_id FROM practice_members WHERE user_id = auth.uid()
