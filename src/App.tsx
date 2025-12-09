@@ -32,6 +32,12 @@ async function checkAuth(): Promise<boolean> {
 // Root route with layout
 const rootRoute = createRootRoute({
   component: () => {
+    const location = window.location.pathname
+    // Don't show navigation on login page
+    if (location === '/login') {
+      return <Outlet />
+    }
+    
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
@@ -43,11 +49,11 @@ const rootRoute = createRootRoute({
   },
 })
 
-// Login route
+// Login route (standalone, no navigation)
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
-  component: LoginPage,
+  component: () => <LoginPage />,
   beforeLoad: async () => {
     const authenticated = await checkAuth()
     if (authenticated) {
