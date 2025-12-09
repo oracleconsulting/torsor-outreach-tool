@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { X, Building2, Calendar, MapPin, FileText, Users, ExternalLink } from 'lucide-react'
 import { useCompany, useCompanyOfficers, useCompanyFilings } from '../../hooks/useCompaniesHouse'
-import type { Company } from '../../types'
 
 interface CompanyModalProps {
   companyNumber: string

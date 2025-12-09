@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from '@tanstack/react-router'
 import { Trash2, Search, RefreshCw } from 'lucide-react'
+import type { SearchHistory } from '../types'
 
 export function SearchHistoryPage() {
   const { user } = useAuth()

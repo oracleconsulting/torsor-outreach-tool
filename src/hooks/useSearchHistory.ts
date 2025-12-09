@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { searchHistory } from '../services/searchHistory'
-import type { SearchHistory } from '../types'
 
 export function useSearchHistory(practiceId: string | undefined) {
   return useQuery({
