@@ -163,6 +163,7 @@ export function FirmSearchPage() {
             onSaveProspect={handleSaveProspect}
             onViewCompany={handleViewCompany}
             onEnrichCompanies={handleEnrichCompanies}
+            practiceId={practiceId}
           />
         </div>
       )}

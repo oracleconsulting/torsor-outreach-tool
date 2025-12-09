@@ -2,15 +2,18 @@ import { useState } from 'react'
 import { CheckCircle2, AlertTriangle, Search as SearchIcon, Save } from 'lucide-react'
 import type { SearchResult } from '../../types'
 import { AddressStatusCell } from '../enrichment/AddressStatusCell'
+import { FitScoreBadge } from '../fit/FitScoreBadge'
+import { useFitScore } from '../../hooks/useFitScore'
 
 interface SearchResultsProps {
   results: SearchResult[]
   onSaveProspect?: (companyNumber: string) => void
   onViewCompany?: (companyNumber: string) => void
   onEnrichCompanies?: (companyNumbers: string[]) => void
+  practiceId?: string
 }
 
-export function SearchResults({ results, onSaveProspect, onViewCompany, onEnrichCompanies }: SearchResultsProps) {
+export function SearchResults({ results, onSaveProspect, onViewCompany, onEnrichCompanies, practiceId }: SearchResultsProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const toggleSelect = (companyNumber: string) => {
@@ -104,6 +107,11 @@ export function SearchResults({ results, onSaveProspect, onViewCompany, onEnrich
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Address Status
               </th>
+              {practiceId && (
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Fit Score
+                </th>
+              )}
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
@@ -155,6 +163,11 @@ export function SearchResults({ results, onSaveProspect, onViewCompany, onEnrich
                     onEnrich={() => onEnrichCompanies?.([result.company_number])}
                   />
                 </td>
+                {practiceId && (
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <FitScoreCell companyNumber={result.company_number} practiceId={practiceId} />
+                  </td>
+                )}
                 <td className="px-4 py-4 whitespace-nowrap text-sm">
                   <button
                     onClick={() => onViewCompany?.(result.company_number)}
@@ -176,5 +189,10 @@ export function SearchResults({ results, onSaveProspect, onViewCompany, onEnrich
       </div>
     </div>
   )
+}
+
+function FitScoreCell({ companyNumber, practiceId }: { companyNumber: string; practiceId: string }) {
+  const { data: fitScore } = useFitScore(practiceId, companyNumber)
+  return <FitScoreBadge score={fitScore} />
 }
 

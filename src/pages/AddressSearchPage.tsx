@@ -207,6 +207,7 @@ export function AddressSearchPage() {
                 onSaveProspect={handleSaveProspect}
                 onViewCompany={handleViewCompany}
                 onEnrichCompanies={handleEnrichCompanies}
+                practiceId={practiceId}
               />
             ) : (
               <div className="text-center py-12 text-gray-500">

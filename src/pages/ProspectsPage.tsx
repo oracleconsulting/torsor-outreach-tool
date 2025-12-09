@@ -7,6 +7,8 @@ import { supabase } from '../lib/supabase'
 import { prospects } from '../services/prospects'
 import { BulkEnrichmentModal } from '../components/enrichment/BulkEnrichmentModal'
 import { AddressStatusCell } from '../components/enrichment/AddressStatusCell'
+import { FitScoreBadge } from '../components/fit/FitScoreBadge'
+import { useFitScore } from '../hooks/useFitScore'
 import type { ProspectStatus, Prospect } from '../types'
 import type { CompanyForEnrichment } from '../types/enrichment'
 
@@ -260,6 +262,7 @@ export function ProspectsPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fit Score</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -304,6 +307,11 @@ export function ProspectsPage() {
                         } as any}
                       />
                     </td>
+                    <td className="px-4 py-4">
+                      {practiceId && (
+                        <FitScoreCell companyNumber={prospect.company_number} practiceId={practiceId} />
+                      )}
+                    </td>
                     <td className="px-4 py-4 text-sm text-gray-500">{prospect.discovery_source}</td>
                     <td className="px-4 py-4 text-sm text-gray-500">
                       {new Date(prospect.created_at).toLocaleDateString()}
@@ -343,4 +351,9 @@ export function ProspectsPage() {
       )}
     </div>
   )
+}
+
+function FitScoreCell({ companyNumber, practiceId }: { companyNumber: string; practiceId: string }) {
+  const { data: fitScore } = useFitScore(practiceId, companyNumber)
+  return <FitScoreBadge score={fitScore} />
 }
