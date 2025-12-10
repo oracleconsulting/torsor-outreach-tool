@@ -1,5 +1,4 @@
-import { getSchemaClient } from '../lib/supabase'
-const supabase = getSchemaClient('outreach')
+import { supabase } from '../lib/supabase'
 import type { Director } from '../types/directors'
 
 export interface DirectorCSVRow {
@@ -525,7 +524,7 @@ export const directorImport = {
     // Try by name + company_number (if provided) - most reliable for CSV imports
     if (row.company_number) {
       const { data: appointment } = await supabase
-        .from('director_appointments')
+        .from('outreach.director_appointments')
         .select('director_id, director:directors(*)')
         .eq('company_number', row.company_number)
         .ilike('director:directors.name', `%${row.dir_full_name.split(' ').pop()}%`) // Match on surname
@@ -553,7 +552,7 @@ export const directorImport = {
 
     // Try by name only (fuzzy match)
     const { data } = await supabase
-      .from('directors')
+      .from('outreach.directors')
       .select('*')
       .ilike('name', `%${row.dir_full_name.split(' ').pop()}%`) // Match on surname
       .limit(5)
@@ -616,7 +615,7 @@ export const directorImport = {
     if (row.dir_nationality) updateData.nationality = row.dir_nationality
 
     const { error } = await supabase
-      .from('directors')
+      .from('outreach.directors')
       .update(updateData)
       .eq('id', directorId)
 
@@ -667,7 +666,7 @@ export const directorImport = {
     if (row.dir_nationality) directorData.nationality = row.dir_nationality
 
     const { data, error } = await supabase
-      .from('directors')
+      .from('outreach.directors')
       .insert(directorData)
       .select()
       .single()
@@ -677,7 +676,7 @@ export const directorImport = {
     // If we have a company_number, create appointment link
     if (row.company_number) {
       const { error: appointmentError } = await supabase
-        .from('director_appointments')
+        .from('outreach.director_appointments')
         .insert({
           director_id: data.id,
           company_number: row.company_number,
