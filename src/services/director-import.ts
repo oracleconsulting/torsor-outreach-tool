@@ -177,6 +177,7 @@ export const directorImport = {
     options?: {
       confirmAddresses?: boolean // Use Perplexity to confirm addresses
       skipConfirmation?: boolean // Skip if address already confirmed
+      onProgress?: (current: number, total: number) => void // Progress callback
     }
   ): Promise<ImportResult> {
     const result: ImportResult = {
@@ -211,6 +212,12 @@ export const directorImport = {
       // Process each row
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i]
+        
+        // Report progress
+        if (options?.onProgress) {
+          options.onProgress(i + 1, rows.length)
+        }
+        
         try {
           const directorRow = this.normalizeRow(row, mapping)
           

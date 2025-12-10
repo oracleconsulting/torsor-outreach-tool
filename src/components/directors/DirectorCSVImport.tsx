@@ -25,7 +25,8 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
     }
   }
 
-  const [confirmAddresses, setConfirmAddresses] = useState(true)
+  const [confirmAddresses, setConfirmAddresses] = useState(false) // Default to false for faster imports
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null)
 
   const handleImport = async () => {
     if (!file) {
@@ -34,11 +35,16 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
     }
 
     setIsImporting(true)
+    setProgress({ current: 0, total: 0 })
     try {
       const importResult = await directorImport.importFromCSV(file, practiceId, {
         confirmAddresses,
+        onProgress: (current, total) => {
+          setProgress({ current, total })
+        },
       })
       setResult(importResult)
+      setProgress(null)
       
       if (importResult.total === 0) {
         toast.error('No rows found in CSV file. Please check the file format.')
@@ -59,6 +65,7 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
       onImportComplete?.(importResult)
     } catch (error) {
       toast.error(`Import failed: ${(error as Error).message}`)
+      setProgress(null)
     } finally {
       setIsImporting(false)
     }
@@ -152,7 +159,8 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
             <label htmlFor="confirm-addresses" className="text-sm cursor-pointer">
               <span className="font-medium">Confirm addresses with AI</span>
               <span className="text-gray-600 block text-xs mt-1">
-                Use Perplexity AI to verify and correct director contact addresses (not registered office addresses)
+                Use Perplexity AI to verify and correct director contact addresses (not registered office addresses).
+                <strong className="text-orange-600"> Note: This will significantly slow down the import (1-2 seconds per row).</strong>
               </span>
             </label>
           </div>
