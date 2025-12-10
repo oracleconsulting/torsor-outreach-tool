@@ -144,6 +144,7 @@ const routeTree = rootRoute.addChildren([
   covenantsRoute,
   historyRoute,
   eventsRoute,
+  networkRoute,
 ])
 
 // Create router

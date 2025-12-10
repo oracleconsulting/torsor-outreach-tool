@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { directors } from '../services/directors'
-import type { DirectorNetworkDetail, NetworkOpportunity } from '../types/directors'
 
 export function useCompanyDirectors(companyNumber: string | undefined) {
   return useQuery({

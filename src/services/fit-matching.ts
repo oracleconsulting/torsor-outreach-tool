@@ -185,7 +185,7 @@ export const fitMatching = {
   async calculatePracticeFit(
     practiceId: string,
     companyNumber: string,
-    company: Company
+    _company: Company
   ): Promise<ProspectFitScore> {
     // Get practice capabilities
     let capabilities = await this.getPracticeCapabilities(practiceId)
