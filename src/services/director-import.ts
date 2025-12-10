@@ -194,8 +194,17 @@ export const directorImport = {
       const text = await file.text()
       const { headers, rows } = this.parseCSV(text)
       
+      if (rows.length === 0) {
+        throw new Error('CSV file appears to be empty or has no data rows')
+      }
+      
       // Auto-detect column mappings
       const mapping = this.detectColumnMappings(headers)
+      
+      // Log detected mappings for debugging
+      console.log('Detected column mappings:', mapping)
+      console.log('CSV headers:', headers)
+      console.log('Number of rows:', rows.length)
       
       result.total = rows.length
 
@@ -209,7 +218,7 @@ export const directorImport = {
           if (!directorRow.dir_full_name) {
             result.warnings.push({
               row: i + 1,
-              warning: 'No director name found in row',
+              warning: `No director name found in row. Available columns: ${Object.keys(row).join(', ')}`,
               data: directorRow,
             })
             continue
