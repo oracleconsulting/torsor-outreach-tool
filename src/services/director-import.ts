@@ -349,7 +349,15 @@ export const directorImport = {
   ): DirectorCSVRow {
     const getValue = (key: string | undefined) => {
       if (!key) return undefined
-      return row[key]?.trim() || undefined
+      // Try exact match first
+      if (row[key]) return row[key]?.trim() || undefined
+      // Try lowercase match (CSV parser converts headers to lowercase)
+      const lowerKey = key.toLowerCase().trim()
+      if (row[lowerKey]) return row[lowerKey]?.trim() || undefined
+      // Try case-insensitive match
+      const foundKey = Object.keys(row).find(k => k.toLowerCase() === lowerKey)
+      if (foundKey) return row[foundKey]?.trim() || undefined
+      return undefined
     }
 
     // Build full name from components or use provided
