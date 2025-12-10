@@ -67,7 +67,30 @@ export const prospects = {
       .single()
 
     if (error) throw error
+
+    // Auto-calculate fit score in background (don't await)
+    if (data) {
+      this.calculateFitScoreForProspect(prospect.practice_id, prospect.company_number).catch(
+        (err) => console.error('Error calculating fit score:', err)
+      )
+    }
+
     return data as Prospect
+  },
+
+  async calculateFitScoreForProspect(practiceId: string, companyNumber: string): Promise<void> {
+    // Get company data
+    const { data: company } = await supabase
+      .from('outreach.companies')
+      .select('*')
+      .eq('company_number', companyNumber)
+      .single()
+
+    if (!company) return
+
+    // Import fit matching service
+    const { fitMatching } = await import('./fit-matching')
+    await fitMatching.calculatePracticeFit(practiceId, companyNumber, company as any)
   },
 
   async updateProspect(id: string, updates: ProspectUpdate): Promise<Prospect> {
