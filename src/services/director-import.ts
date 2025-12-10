@@ -203,7 +203,7 @@ export const directorImport = {
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i]
         try {
-          const directorRow = this.normalizeRow(row, mapping, headers)
+          const directorRow = this.normalizeRow(row, mapping)
           
           // Skip if no director name found
           if (!directorRow.dir_full_name) {
@@ -336,8 +336,7 @@ export const directorImport = {
    */
   normalizeRow(
     row: Record<string, string>,
-    mapping: ColumnMapping,
-    originalHeaders: string[]
+    mapping: ColumnMapping
   ): DirectorCSVRow {
     const getValue = (key: string | undefined) => {
       if (!key) return undefined
@@ -460,14 +459,20 @@ export const directorImport = {
       if (appointment && appointment.length > 0) {
         // Find best match by full name similarity
         const bestMatch = appointment.find(a => {
-          const directorName = (a.director as any)?.name || ''
+          const director = a.director as any
+          if (!director || Array.isArray(director)) return false
+          const directorName = director.name || ''
           return directorName.toLowerCase().includes(row.dir_full_name!.toLowerCase()) ||
                  row.dir_full_name!.toLowerCase().includes(directorName.toLowerCase())
         })
         
-        if (bestMatch?.director) return bestMatch.director as Director
+        if (bestMatch?.director && !Array.isArray(bestMatch.director)) {
+          return bestMatch.director as Director
+        }
         // Fallback to first match
-        if (appointment[0]?.director) return appointment[0].director as Director
+        if (appointment[0]?.director && !Array.isArray(appointment[0].director)) {
+          return appointment[0].director as Director
+        }
       }
     }
 
@@ -498,7 +503,7 @@ export const directorImport = {
   async updateDirectorAddress(
     directorId: string,
     row: DirectorCSVRow,
-    practiceId: string,
+    _practiceId: string,
     confirmedAddress?: any
   ): Promise<void> {
     const updateData: any = {
@@ -548,7 +553,7 @@ export const directorImport = {
    */
   async createDirectorWithAddress(
     row: DirectorCSVRow,
-    practiceId: string,
+    _practiceId: string,
     confirmedAddress?: any
   ): Promise<Director> {
     if (!row.dir_full_name) {
@@ -596,13 +601,17 @@ export const directorImport = {
     
     // If we have a company_number, create appointment link
     if (row.company_number) {
-      await supabase.from('outreach.director_appointments').insert({
-        director_id: data.id,
-        company_number: row.company_number,
-        role: row.dir_position || 'director',
-      }).catch(() => {
-        // Ignore errors - appointment might already exist
-      })
+      const { error: appointmentError } = await supabase
+        .from('outreach.director_appointments')
+        .insert({
+          director_id: data.id,
+          company_number: row.company_number,
+          role: row.dir_position || 'director',
+        })
+      // Ignore errors - appointment might already exist
+      if (appointmentError && appointmentError.code !== '23505') {
+        console.warn('Failed to create appointment:', appointmentError)
+      }
     }
     
     return data

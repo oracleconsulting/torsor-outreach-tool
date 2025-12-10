@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Upload, FileText, CheckCircle, XCircle, Loader2, Download } from 'lucide-react'
 import { directorImport, type ImportResult } from '../../services/director-import'
-import { Button } from '../ui/button'
 import toast from 'react-hot-toast'
 
 interface DirectorCSVImportProps {
@@ -89,10 +88,14 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
           <p className="text-sm font-medium text-blue-900">Need a template?</p>
           <p className="text-xs text-blue-700">Download our CSV template with example data and column headers</p>
         </div>
-        <Button variant="outline" size="sm" onClick={downloadTemplate}>
-          <Download className="h-4 w-4 mr-2" />
+        <button
+          type="button"
+          onClick={downloadTemplate}
+          className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
           Download Template
-        </Button>
+        </button>
       </div>
 
       {/* File Upload */}
@@ -148,23 +151,24 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
             </label>
           </div>
           
-          <Button
+          <button
+            type="button"
             onClick={handleImport}
             disabled={isImporting}
-            className="w-full"
+            className="w-full px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isImporting ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Importing{confirmAddresses ? ' and confirming addresses' : ''}...
               </>
             ) : (
               <>
-                <Upload className="h-4 w-4 mr-2" />
+                <Upload className="h-4 w-4" />
                 Import Director Addresses
               </>
             )}
-          </Button>
+          </button>
         </div>
       )}
 
@@ -208,9 +212,9 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
                 {result.errors.map((error, idx) => (
                   <div key={idx} className="text-sm text-red-800 bg-white p-2 rounded">
                     <div className="font-medium">Row {error.row}: {error.error}</div>
-                    {error.data.name && (
+                    {error.data.dir_full_name && (
                       <div className="text-xs text-gray-600 mt-1">
-                        Director: {error.data.name}
+                        Director: {error.data.dir_full_name}
                       </div>
                     )}
                   </div>
