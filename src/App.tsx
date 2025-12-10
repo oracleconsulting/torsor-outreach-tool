@@ -10,6 +10,7 @@ import { ProspectsPage } from './pages/ProspectsPage'
 import { CovenantsPage } from './pages/CovenantsPage'
 import { SearchHistoryPage } from './pages/SearchHistoryPage'
 import { EventsPage } from './pages/EventsPage'
+import { NetworkPage } from './pages/NetworkPage'
 import { supabase } from './lib/supabase'
 
 const queryClient = new QueryClient({
@@ -123,6 +124,13 @@ const eventsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/events',
   component: EventsPage,
+  beforeLoad: requireAuth,
+})
+
+const networkRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/network',
+  component: NetworkPage,
   beforeLoad: requireAuth,
 })
 

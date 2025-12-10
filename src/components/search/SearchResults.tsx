@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { CheckCircle2, AlertTriangle, Search as SearchIcon, Save } from 'lucide-react'
+import { CheckCircle2, AlertTriangle, Search as SearchIcon, Save, Eye, EyeOff } from 'lucide-react'
 import type { SearchResult } from '../../types'
 import { AddressStatusCell } from '../enrichment/AddressStatusCell'
 import { FitScoreBadge } from '../fit/FitScoreBadge'
 import { useFitScore } from '../../hooks/useFitScore'
+import { useAddToWatchlist, useRemoveFromWatchlist, useWatchlist } from '../../hooks/useWatchlist'
+import toast from 'react-hot-toast'
 
 interface SearchResultsProps {
   results: SearchResult[]
@@ -15,6 +17,31 @@ interface SearchResultsProps {
 
 export function SearchResults({ results, onSaveProspect, onViewCompany, onEnrichCompanies, practiceId }: SearchResultsProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const { data: watchlist } = useWatchlist(practiceId)
+  const addToWatchlist = useAddToWatchlist()
+  const removeFromWatchlist = useRemoveFromWatchlist()
+
+  const isWatched = (companyNumber: string) =>
+    watchlist?.some((w) => w.company_number === companyNumber) || false
+
+  const handleToggleWatch = async (companyNumber: string) => {
+    if (!practiceId) {
+      toast.error('Please log in to watch companies')
+      return
+    }
+
+    try {
+      if (isWatched(companyNumber)) {
+        await removeFromWatchlist.mutateAsync({ practiceId, companyNumber })
+        toast.success('Removed from watchlist')
+      } else {
+        await addToWatchlist.mutateAsync({ practiceId, companyNumber })
+        toast.success('Added to watchlist')
+      }
+    } catch (error: any) {
+      toast.error('Error updating watchlist: ' + error.message)
+    }
+  }
 
   const toggleSelect = (companyNumber: string) => {
     const newSelected = new Set(selected)
@@ -169,18 +196,33 @@ export function SearchResults({ results, onSaveProspect, onViewCompany, onEnrich
                   </td>
                 )}
                 <td className="px-4 py-4 whitespace-nowrap text-sm">
-                  <button
-                    onClick={() => onViewCompany?.(result.company_number)}
-                    className="text-primary hover:text-primary/80 mr-4"
-                  >
-                    View Details
-                  </button>
-                  <button
-                    onClick={() => onSaveProspect?.(result.company_number)}
-                    className="text-primary hover:text-primary/80"
-                  >
-                    Save
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onViewCompany?.(result.company_number)}
+                      className="text-primary hover:text-primary/80"
+                    >
+                      View Details
+                    </button>
+                    {practiceId && (
+                      <button
+                        onClick={() => handleToggleWatch(result.company_number)}
+                        className="text-gray-500 hover:text-gray-700"
+                        title={isWatched(result.company_number) ? 'Remove from watchlist' : 'Add to watchlist'}
+                      >
+                        {isWatched(result.company_number) ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onSaveProspect?.(result.company_number)}
+                      className="text-primary hover:text-primary/80"
+                    >
+                      Save
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

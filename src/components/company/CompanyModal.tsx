@@ -24,6 +24,7 @@ export function CompanyModal({ companyNumber, isOpen, onClose, onSaveProspect }:
   const { data: watchlist } = useWatchlist(practiceId)
   const addToWatchlist = useAddToWatchlist()
   const removeFromWatchlist = useRemoveFromWatchlist()
+  const buildNetwork = useBuildNetwork()
 
   useEffect(() => {
     const getPracticeId = async () => {
@@ -56,6 +57,20 @@ export function CompanyModal({ companyNumber, isOpen, onClose, onSaveProspect }:
       }
     } catch (error: any) {
       toast.error('Error updating watchlist: ' + error.message)
+    }
+  }
+
+  const handleBuildNetwork = async () => {
+    if (!practiceId) {
+      toast.error('Please log in to build networks')
+      return
+    }
+
+    try {
+      await buildNetwork.mutateAsync({ practiceId, companyNumber })
+      toast.success('Network built successfully! Check the Network page for opportunities.')
+    } catch (error: any) {
+      toast.error('Error building network: ' + error.message)
     }
   }
 
@@ -352,23 +367,42 @@ export function CompanyModal({ companyNumber, isOpen, onClose, onSaveProspect }:
                 View on Companies House
               </a>
               {practiceId && (
-                <button
-                  onClick={handleToggleWatch}
-                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
-                  disabled={addToWatchlist.isPending || removeFromWatchlist.isPending}
-                >
-                  {isWatched ? (
-                    <>
-                      <EyeOff className="h-4 w-4" />
-                      Remove from Watchlist
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="h-4 w-4" />
-                      Add to Watchlist
-                    </>
-                  )}
-                </button>
+                <>
+                  <button
+                    onClick={handleToggleWatch}
+                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+                    disabled={addToWatchlist.isPending || removeFromWatchlist.isPending}
+                  >
+                    {isWatched ? (
+                      <>
+                        <EyeOff className="h-4 w-4" />
+                        Remove from Watchlist
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="h-4 w-4" />
+                        Add to Watchlist
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleBuildNetwork}
+                    className="flex items-center gap-2 text-sm text-primary hover:text-primary/80"
+                    disabled={buildNetwork.isPending}
+                  >
+                    {buildNetwork.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Building...
+                      </>
+                    ) : (
+                      <>
+                        <Network className="h-4 w-4" />
+                        Build Network
+                      </>
+                    )}
+                  </button>
+                </>
               )}
             </div>
             <div className="flex gap-3">

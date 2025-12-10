@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { Building2, Search, MapPin, Users, Shield, History, LogOut, Bell } from 'lucide-react'
+import { Building2, Search, MapPin, Users, Shield, History, LogOut, Bell, Network } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { usePendingEvents } from '../../hooks/useWatchlist'
 import { supabase } from '../../lib/supabase'
@@ -13,6 +13,7 @@ const navItems = [
   { path: '/covenants', label: 'Covenants', icon: Shield },
   { path: '/history', label: 'History', icon: History },
   { path: '/events', label: 'Events', icon: Bell },
+  { path: '/network', label: 'Network', icon: Network },
 ]
 
 export function Navigation() {
