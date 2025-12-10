@@ -1,4 +1,5 @@
-import { supabase } from '../lib/supabase'
+import { getSchemaClient } from '../lib/supabase'
+const supabase = getSchemaClient('outreach')
 import type { Director } from '../types/directors'
 
 export interface DirectorCSVRow {
