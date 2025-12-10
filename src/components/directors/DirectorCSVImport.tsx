@@ -174,7 +174,16 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
             {isImporting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Importing{confirmAddresses ? ' and confirming addresses' : ''}...
+                {progress ? (
+                  <>
+                    Processing {progress.current} of {progress.total} rows
+                    {confirmAddresses ? ' (confirming addresses...)' : ''}
+                  </>
+                ) : (
+                  <>
+                    Importing{confirmAddresses ? ' and confirming addresses' : ''}...
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -183,6 +192,15 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
               </>
             )}
           </button>
+
+          {progress && progress.total > 0 && (
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div
+                className="bg-primary h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+              />
+            </div>
+          )}
         </div>
       )}
 
