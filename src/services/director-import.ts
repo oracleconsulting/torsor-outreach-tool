@@ -51,6 +51,7 @@ export interface DirectorCSVRow {
   email?: string
   phone?: string
   linkedin_url?: string
+  preferred_contact_method?: 'email' | 'phone' | 'address' | 'linkedin'
   
   // Raw row data for reference
   _raw?: Record<string, string>
@@ -249,15 +250,6 @@ export const directorImport = {
               data: directorRow,
             })
             continue
-          }
-          
-          // Find matching director
-          let director: Director | null = null
-          try {
-            director = await this.findDirector(directorRow)
-          } catch (findError) {
-            console.warn(`Error finding director for row ${i + 1}:`, findError)
-            // Continue to create new director if find fails
           }
           
           // Confirm address with Perplexity if requested
