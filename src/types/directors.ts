@@ -1,5 +1,14 @@
 // Director Network types
 
+export interface Address {
+  address_line_1?: string
+  address_line_2?: string
+  locality?: string
+  region?: string
+  postal_code?: string
+  country?: string
+}
+
 export interface Director {
   id: string
   officer_id?: string
@@ -10,6 +19,16 @@ export interface Director {
   active_appointments: number
   sectors?: string[]
   last_updated: string
+  // Address fields (from CSV import)
+  trading_address?: Address
+  contact_address?: Address
+  email?: string
+  phone?: string
+  linkedin_url?: string
+  preferred_contact_method?: 'email' | 'phone' | 'address' | 'linkedin'
+  address_source?: string
+  address_verified_at?: string
+  address_verified_by?: string
 }
 
 export interface DirectorAppointment {
