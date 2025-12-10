@@ -287,9 +287,11 @@ export const directorImport = {
             result.created++
           }
         } catch (error) {
+          const errorMessage = (error as Error).message
+          console.error(`Error processing row ${i + 1}:`, errorMessage, error)
           result.errors.push({
             row: i + 1,
-            error: (error as Error).message,
+            error: errorMessage,
             data: row as Partial<DirectorCSVRow>,
           })
         }
