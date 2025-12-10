@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react'
 import { useNetworkOpportunities } from '../hooks/useDirectorNetwork'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
-import { Building2, Users, TrendingUp, Loader2 } from 'lucide-react'
+import { Building2, Users, TrendingUp, Loader2, Upload } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
+import { DirectorCSVImport } from '../components/directors/DirectorCSVImport'
+import toast from 'react-hot-toast'
 
 export function NetworkPage() {
   const { user } = useAuth()
   const [practiceId, setPracticeId] = useState<string | undefined>()
+  const [showImport, setShowImport] = useState(false)
 
   useEffect(() => {
     const getPracticeId = async () => {
@@ -31,12 +34,33 @@ export function NetworkPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Director Network Opportunities</h1>
-        <p className="text-gray-600 mt-2">
-          Companies connected to your existing clients through shared directors
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Director Network Opportunities</h1>
+          <p className="text-gray-600 mt-2">
+            Companies connected to your existing clients through shared directors
+          </p>
+        </div>
+        <button
+          onClick={() => setShowImport(!showImport)}
+          className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 flex items-center gap-2"
+        >
+          <Upload className="h-4 w-4" />
+          {showImport ? 'Hide Import' : 'Import Director Addresses'}
+        </button>
       </div>
+
+      {showImport && practiceId && (
+        <div className="bg-white rounded-lg border p-6">
+          <DirectorCSVImport
+            practiceId={practiceId}
+            onImportComplete={(result) => {
+              toast.success(`Import complete: ${result.updated} updated, ${result.created} created`)
+              setShowImport(false)
+            }}
+          />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-center py-12">
