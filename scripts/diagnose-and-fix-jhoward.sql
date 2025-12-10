@@ -4,13 +4,19 @@
 -- ============================================================================
 -- STEP 1: Check if user exists in auth.users
 -- ============================================================================
+-- If this returns NO ROWS, the user doesn't exist in auth.users
+-- You need to create them via Supabase Dashboard → Authentication → Users → Add User
 SELECT 
   id,
   email,
   email_confirmed_at,
   created_at,
   last_sign_in_at,
-  confirmed_at
+  confirmed_at,
+  CASE 
+    WHEN email_confirmed_at IS NULL THEN '⚠️ Email NOT confirmed - may cause login issues'
+    ELSE '✅ Email confirmed'
+  END as email_status
 FROM auth.users
 WHERE email = 'jhoward@rpgcc.co.uk';
 
