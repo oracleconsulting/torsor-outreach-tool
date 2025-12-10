@@ -161,24 +161,32 @@ export function ProspectsPage() {
       </div>
 
       {/* Enrichment Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg border p-4">
-          <p className="text-sm text-gray-500">Total</p>
-          <p className="text-2xl font-bold">{enrichmentStats.total}</p>
+      {prospectsList && prospectsList.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-lg border p-4">
+            <p className="text-sm text-gray-500">Total</p>
+            <p className="text-2xl font-bold">{prospectsList.length}</p>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <p className="text-sm text-gray-500">Has Address</p>
+            <p className="text-2xl font-bold text-green-600">
+              {prospectsList.filter((p) => p.enrichment_status === 'confirmed' || p.enrichment_status === 'found').length}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <p className="text-sm text-gray-500">Needs Enrichment</p>
+            <p className="text-2xl font-bold text-yellow-600">
+              {prospectsList.filter((p) => !p.enrichment_status || p.enrichment_status === 'not_attempted' || p.enrichment_status === 'not_found').length}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg border p-4">
+            <p className="text-sm text-gray-500">No Address</p>
+            <p className="text-2xl font-bold text-red-600">
+              {prospectsList.filter((p) => p.enrichment_status === 'invalid').length}
+            </p>
+          </div>
         </div>
-        <div className="bg-white rounded-lg border p-4">
-          <p className="text-sm text-gray-500">Has Address</p>
-          <p className="text-2xl font-bold text-green-600">{enrichmentStats.withAddress}</p>
-        </div>
-        <div className="bg-white rounded-lg border p-4">
-          <p className="text-sm text-gray-500">Needs Enrichment</p>
-          <p className="text-2xl font-bold text-yellow-600">{enrichmentStats.needsEnrichment}</p>
-        </div>
-        <div className="bg-white rounded-lg border p-4">
-          <p className="text-sm text-gray-500">No Address</p>
-          <p className="text-2xl font-bold text-red-600">{enrichmentStats.noAddress}</p>
-        </div>
-      </div>
+      )}
 
       {/* Bulk Actions */}
       <div className="bg-white rounded-lg border p-4">
@@ -207,14 +215,33 @@ export function ProspectsPage() {
 
           <div className="flex-1" />
 
-          <button
-            onClick={() => handleEnrichSelected('find')}
-            disabled={needsEnrichment.length === 0}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          >
-            <Search className="h-4 w-4" />
-            Enrich All Needing ({needsEnrichment.length})
-          </button>
+          {prospectsList && prospectsList.filter(
+            (p) => !p.enrichment_status || p.enrichment_status === 'not_attempted' || p.enrichment_status === 'not_found'
+          ).length > 0 && (
+            <button
+              onClick={() => {
+                const needsEnrichment = prospectsList
+                  .filter((p) => !p.enrichment_status || p.enrichment_status === 'not_attempted' || p.enrichment_status === 'not_found')
+                  .map((p) => ({
+                    company_number: p.company_number,
+                    company_name: (p as any).companies?.company_name || p.company_number,
+                    registered_address: (p as any).companies?.registered_office_address,
+                    trading_address: p.enriched_address,
+                    enrichment_status: p.enrichment_status,
+                  }))
+                  .filter((c): c is CompanyForEnrichment => !!c.registered_address)
+                setCompaniesToEnrich(needsEnrichment)
+                setEnrichmentOperation('find')
+                setEnrichmentModalOpen(true)
+              }}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              <Search className="h-4 w-4" />
+              Enrich All Needing ({prospectsList.filter(
+                (p) => !p.enrichment_status || p.enrichment_status === 'not_attempted' || p.enrichment_status === 'not_found'
+              ).length})
+            </button>
+          )}
         </div>
       </div>
 
