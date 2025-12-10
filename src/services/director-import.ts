@@ -293,14 +293,62 @@ export const directorImport = {
             }
           }
           
-          if (director) {
-            // Update existing director
-            await this.updateDirectorAddress(director.id, directorRow, practiceId, confirmedAddress)
+          // Use Edge Function to handle database operations (bypasses schema exposure issue)
+          const directorPayload = {
+            name: directorRow.dir_full_name!,
+            company_number: directorRow.company_number,
+            company_name: directorRow.company_name,
+            trading_address: directorRow.dir_address_line_1 ? {
+              address_line_1: confirmedAddress?.address_line_1 || directorRow.dir_address_line_1,
+              address_line_2: confirmedAddress?.address_line_2 || directorRow.dir_address_line_2 || directorRow.dir_address_line_3,
+              locality: confirmedAddress?.locality || directorRow.dir_town,
+              postal_code: confirmedAddress?.postal_code || directorRow.dir_postcode,
+              country: confirmedAddress?.country || directorRow.dir_country || 'United Kingdom',
+            } : undefined,
+            contact_address: directorRow.dir_address_line_1 ? {
+              address_line_1: confirmedAddress?.address_line_1 || directorRow.dir_address_line_1,
+              address_line_2: confirmedAddress?.address_line_2 || directorRow.dir_address_line_2 || directorRow.dir_address_line_3,
+              locality: confirmedAddress?.locality || directorRow.dir_town,
+              postal_code: confirmedAddress?.postal_code || directorRow.dir_postcode,
+              country: confirmedAddress?.country || directorRow.dir_country || 'United Kingdom',
+            } : undefined,
+            email: directorRow.email,
+            phone: directorRow.phone,
+            linkedin_url: directorRow.linkedin_url,
+            preferred_contact_method: directorRow.preferred_contact_method,
+            date_of_birth: directorRow.dir_date_of_birth,
+            nationality: directorRow.dir_nationality,
+            address_source: confirmedAddress ? 'csv_import_ai_confirmed' : 'csv_import',
+            address_verified_at: new Date().toISOString(),
+          }
+
+          const { data: { session } } = await supabase.auth.getSession()
+          const response = await fetch(`${SUPABASE_URL}/functions/v1/import-directors`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token || ''}`,
+            },
+            body: JSON.stringify({
+              practiceId,
+              directors: [directorPayload],
+            }),
+          })
+
+          if (!response.ok) {
+            const error = await response.json()
+            throw new Error(error.error || `HTTP ${response.status}`)
+          }
+
+          const importResult = await response.json()
+          if (importResult.errors && importResult.errors.length > 0) {
+            throw new Error(importResult.errors[0].error)
+          }
+
+          if (importResult.updated > 0) {
             result.matched++
             result.updated++
-          } else {
-            // Create new director if we have enough info
-            await this.createDirectorWithAddress(directorRow, practiceId, confirmedAddress)
+          } else if (importResult.created > 0) {
             result.created++
           }
         } catch (error) {
