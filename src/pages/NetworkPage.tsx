@@ -34,20 +34,22 @@ export function NetworkPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Director Network Opportunities</h1>
           <p className="text-gray-600 mt-2">
             Companies connected to your existing clients through shared directors
           </p>
         </div>
-        <button
-          onClick={() => setShowImport(!showImport)}
-          className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 flex items-center gap-2"
-        >
-          <Upload className="h-4 w-4" />
-          {showImport ? 'Hide Import' : 'Import Director Addresses'}
-        </button>
+        {practiceId && (
+          <button
+            onClick={() => setShowImport(!showImport)}
+            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 flex items-center justify-center gap-2 whitespace-nowrap"
+          >
+            <Upload className="h-4 w-4" />
+            {showImport ? 'Hide Import' : 'Import Director Addresses'}
+          </button>
+        )}
       </div>
 
       {showImport && practiceId && (
@@ -75,9 +77,18 @@ export function NetworkPage() {
             Build networks by adding your existing clients. The system will discover companies
             connected through shared directors.
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 mb-6">
             To build a network, go to a client company and use the "Build Network" action.
           </p>
+          {!showImport && practiceId && (
+            <button
+              onClick={() => setShowImport(true)}
+              className="px-6 py-3 bg-primary text-white rounded-md hover:bg-primary/90 flex items-center gap-2 mx-auto"
+            >
+              <Upload className="h-5 w-5" />
+              Import Director Addresses from CSV
+            </button>
+          )}
         </div>
       ) : (
         <>
