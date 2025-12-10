@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, Search, MapPin, Users, Bell, Network, TrendingUp } from 'lucide-react'
+import { Building2, Search, MapPin, Users, Bell, Network } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useProspectStats } from '../hooks/useProspects'
 import { useAuth } from '../hooks/useAuth'
