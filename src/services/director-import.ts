@@ -230,6 +230,17 @@ export const directorImport = {
         try {
           const directorRow = this.normalizeRow(row, mapping)
           
+          // Debug: Log first row to see what we're getting
+          if (i === 0) {
+            console.log('First row normalized:', {
+              dir_full_name: directorRow.dir_full_name,
+              company_number: directorRow.company_number,
+              dir_address_line_1: directorRow.dir_address_line_1,
+              mapping: mapping,
+              rowKeys: Object.keys(row).slice(0, 15),
+            })
+          }
+          
           // Skip if no director name found
           if (!directorRow.dir_full_name || directorRow.dir_full_name.trim() === '') {
             result.warnings.push({
@@ -241,7 +252,13 @@ export const directorImport = {
           }
           
           // Find matching director
-          const director = await this.findDirector(directorRow)
+          let director: Director | null = null
+          try {
+            director = await this.findDirector(directorRow)
+          } catch (findError) {
+            console.warn(`Error finding director for row ${i + 1}:`, findError)
+            // Continue to create new director if find fails
+          }
           
           // Confirm address with Perplexity if requested
           let confirmedAddress = null
