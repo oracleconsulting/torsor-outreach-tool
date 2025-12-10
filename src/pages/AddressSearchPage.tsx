@@ -129,7 +129,7 @@ export function AddressSearchPage() {
     const companies: CompanyForEnrichment[] = companyNumbers
       .map((num) => {
         const result = searchResults.find((c) => c.company_number === num)
-        if (!result) return null
+        if (!result || !result.registered_office_address) return null
 
         return {
           company_number: result.company_number,
@@ -138,7 +138,7 @@ export function AddressSearchPage() {
           enrichment_status: result.enrichment_status,
         }
       })
-      .filter((c): c is CompanyForEnrichment => c !== null)
+      .filter((c) => c !== null) as CompanyForEnrichment[]
 
     setCompaniesToEnrich(companies)
     setEnrichmentModalOpen(true)

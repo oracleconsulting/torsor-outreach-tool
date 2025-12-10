@@ -3,7 +3,7 @@ import type { PracticeCapabilities, ProspectFitScore, ServiceNeed } from '../typ
 import type { Company, Prospect } from '../types'
 
 // Helper to extract turnover from company data
-function extractTurnover(company: Company | Prospect): number | undefined {
+function extractTurnover(_company: Company | Prospect): number | undefined {
   // This would need accounts data parsing - placeholder for now
   return undefined
 }
@@ -185,7 +185,7 @@ export const fitMatching = {
   async calculatePracticeFit(
     practiceId: string,
     companyNumber: string,
-    _company: Company
+    company: Company
   ): Promise<ProspectFitScore> {
     // Get practice capabilities
     let capabilities = await this.getPracticeCapabilities(practiceId)

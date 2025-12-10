@@ -8,7 +8,7 @@ import { useFirmDiscovery } from '../hooks/useCompaniesHouse'
 import { useSaveProspect } from '../hooks/useProspects'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
-import type { FirmDiscoveryResult, SearchResult } from '../types'
+import type { FirmDiscoveryResult } from '../types'
 import type { CompanyForEnrichment } from '../types/enrichment'
 
 export function FirmSearchPage() {
@@ -79,7 +79,7 @@ export function FirmSearchPage() {
     const companies: CompanyForEnrichment[] = companyNumbers
       .map((num) => {
         const result = discoveryResults.companies.find((c) => c.company_number === num)
-        if (!result) return null
+        if (!result || !result.registered_office_address) return null
 
         return {
           company_number: result.company_number,
@@ -88,7 +88,7 @@ export function FirmSearchPage() {
           enrichment_status: result.enrichment_status,
         }
       })
-      .filter((c): c is CompanyForEnrichment => c !== null)
+      .filter((c) => c !== null) as CompanyForEnrichment[]
 
     setCompaniesToEnrich(companies)
     setEnrichmentModalOpen(true)
