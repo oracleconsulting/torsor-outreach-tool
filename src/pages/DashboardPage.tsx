@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Building2, Search, MapPin, Users } from 'lucide-react'
+import { Building2, Search, MapPin, Users, Bell, Network, TrendingUp } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useProspectStats } from '../hooks/useProspects'
 import { useAuth } from '../hooks/useAuth'
+import { usePendingEvents } from '../hooks/useWatchlist'
 import { supabase } from '../lib/supabase'
 
 export function DashboardPage() {
   const { user } = useAuth()
   const [practiceId, setPracticeId] = useState<string | undefined>()
   const { data: stats } = useProspectStats(practiceId)
+  const { data: pendingEvents } = usePendingEvents(practiceId)
 
   useEffect(() => {
     const getPracticeId = async () => {
@@ -66,6 +68,19 @@ export function DashboardPage() {
           href="/address-search"
           icon={MapPin}
         />
+        <QuickActionCard
+          title="Event-Triggered Outreach"
+          description={`Monitor companies for trigger events (accounts overdue, director changes, anniversaries). ${pendingEvents && pendingEvents.length > 0 ? `${pendingEvents.length} pending events.` : ''}`}
+          href="/events"
+          icon={Bell}
+          badge={pendingEvents && pendingEvents.length > 0 ? pendingEvents.length : undefined}
+        />
+        <QuickActionCard
+          title="Director Network"
+          description="Discover warm introduction opportunities through shared directors with your existing clients"
+          href="/network"
+          icon={Network}
+        />
       </div>
     </div>
   )
@@ -87,18 +102,25 @@ function StatCard({ title, value, icon: Icon }: { title: string; value: string; 
   )
 }
 
-function QuickActionCard({ title, description, href, icon: Icon }: any) {
+function QuickActionCard({ title, description, href, icon: Icon, badge }: any) {
   return (
     <Link
       to={href}
-      className="bg-white rounded-lg border p-6 hover:border-primary hover:shadow-md transition-all"
+      className="bg-white rounded-lg border p-6 hover:border-primary hover:shadow-md transition-all relative"
     >
       <div className="flex items-start gap-4">
         <div className="p-3 bg-primary/10 rounded-lg">
           <Icon className="h-6 w-6 text-primary" />
         </div>
-        <div>
-          <h3 className="font-semibold">{title}</h3>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold">{title}</h3>
+            {badge && badge > 0 && (
+              <span className="px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                {badge > 9 ? '9+' : badge}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-600 mt-1">{description}</p>
         </div>
       </div>
