@@ -238,6 +238,11 @@ export const directorImport = {
           let confirmedAddress = null
           if (options?.confirmAddresses && directorRow.dir_address_line_1) {
             try {
+              // Add a small delay to avoid rate limiting
+              if (i > 0 && i % 10 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 1000)) // 1 second delay every 10 rows
+              }
+              
               confirmedAddress = await this.confirmDirectorAddress(
                 directorRow.dir_full_name,
                 directorRow,
@@ -258,6 +263,7 @@ export const directorImport = {
                 warning: `Address confirmation failed: ${(error as Error).message}`,
                 data: directorRow,
               })
+              // Continue with unconfirmed address
             }
           }
           

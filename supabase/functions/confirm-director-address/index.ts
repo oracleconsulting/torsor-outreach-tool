@@ -62,6 +62,10 @@ serve(async (req) => {
     prompt += `}\n\n`
     prompt += `If you cannot confirm the address, set "confirmed" to false and provide what information you found.`
 
+    // Add timeout to prevent hanging
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+
     const aiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -85,11 +89,15 @@ serve(async (req) => {
         temperature: 0.3, // Lower temperature for more factual responses
         max_tokens: 500,
       }),
+      signal: controller.signal,
+    }).finally(() => {
+      clearTimeout(timeoutId)
     })
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text()
-      throw new Error(`AI confirmation failed: ${aiResponse.statusText} - ${errorText}`)
+      console.error('AI API error:', aiResponse.status, errorText)
+      throw new Error(`AI confirmation failed: ${aiResponse.statusText}`)
     }
 
     const aiData = await aiResponse.json()
@@ -107,7 +115,8 @@ serve(async (req) => {
         result = JSON.parse(content)
       }
     } catch (parseError) {
-      console.error('Failed to parse AI response:', content)
+      console.error('Failed to parse AI response:', parseError)
+      console.error('AI response content:', content.substring(0, 500))
       // Return provided address as fallback
       return new Response(
         JSON.stringify({
