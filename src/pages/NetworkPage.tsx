@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNetworkOpportunities, useBuildNetwork } from '../hooks/useDirectorNetwork'
+import { useNetworkOpportunities } from '../hooks/useDirectorNetwork'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import { Building2, Users, TrendingUp, Loader2 } from 'lucide-react'
-import toast from 'react-hot-toast'
 import { Link } from '@tanstack/react-router'
 
 export function NetworkPage() {
@@ -132,7 +131,7 @@ export function NetworkPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1">
-                          {opp.connection_path.map((name, idx) => (
+                          {opp.connection_path.map((name: string, idx: number) => (
                             <span
                               key={idx}
                               className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded"

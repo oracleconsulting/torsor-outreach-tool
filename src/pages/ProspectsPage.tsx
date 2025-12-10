@@ -229,7 +229,7 @@ export function ProspectsPage() {
                     trading_address: p.enriched_address,
                     enrichment_status: p.enrichment_status,
                   }))
-                  .filter((c): c is CompanyForEnrichment => !!c.registered_address)
+                  .filter((c): c is CompanyForEnrichment => c !== null && !!c.registered_address)
                 setCompaniesToEnrich(needsEnrichment)
                 setEnrichmentOperation('find')
                 setEnrichmentModalOpen(true)

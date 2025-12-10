@@ -2,12 +2,16 @@ import { useMutation } from '@tanstack/react-query'
 import { enrichment } from '../services/enrichment'
 import type {
   CompanyForEnrichment,
-  EnrichmentResult,
   EnrichmentOperation,
+  FindEnrichmentResult,
+  ConfirmEnrichmentResult,
 } from '../types/enrichment'
 
 export function useEnrichment() {
-  return useMutation({
+  return useMutation<FindEnrichmentResult | ConfirmEnrichmentResult, Error, {
+    company: CompanyForEnrichment
+    operation: EnrichmentOperation
+  }>({
     mutationFn: ({
       company,
       operation,

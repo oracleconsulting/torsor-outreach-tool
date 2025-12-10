@@ -2,6 +2,8 @@ import { supabase } from '../lib/supabase'
 import type {
   Director,
   DirectorNetworkDetail,
+  DirectorAppointment,
+  NetworkOpportunity,
 } from '../types/directors'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -18,7 +20,7 @@ export const directors = {
     return data
   },
 
-  async getOrCreateDirector(officerData: {
+  async getOrCreateDirector(_officerData: {
     officer_id?: string
     name: string
     date_of_birth?: string
@@ -150,7 +152,7 @@ export const directors = {
       company_name: n.target_company_name || n.target_company_data?.company_name || '',
       connection_strength: n.connection_type as 'direct' | 'shared_director',
       connection_path: (n.connecting_directors || [])
-        .map((id) => directorMap.get(id))
+        .map((id: string) => directorMap.get(id))
         .filter(Boolean) as string[],
       source_client: n.source_company,
       source_client_name: n.source_company_data?.company_name,
