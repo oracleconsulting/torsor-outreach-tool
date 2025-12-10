@@ -12,7 +12,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 export const directors = {
   async getDirectorByOfficerId(officerId: string): Promise<Director | null> {
     const { data, error } = await supabase
-      .from('outreach.directors')
+      .from('directors')
       .select('*')
       .eq('officer_id', officerId)
       .single()
@@ -35,7 +35,7 @@ export const directors = {
 
     // Create new
     const { data, error } = await supabase
-      .from('outreach.directors')
+      .from('directors')
       .insert(officerData)
       .select()
       .single()
@@ -46,7 +46,7 @@ export const directors = {
 
   async getDirectorAppointments(directorId: string): Promise<DirectorAppointment[]> {
     const { data, error } = await supabase
-      .from('outreach.director_appointments')
+      .from('director_appointments')
       .select('*')
       .eq('director_id', directorId)
       .order('appointed_on', { ascending: false })
@@ -57,7 +57,7 @@ export const directors = {
 
   async getCompanyDirectors(companyNumber: string): Promise<DirectorAppointment[]> {
     const { data, error } = await supabase
-      .from('outreach.director_appointments')
+      .from('director_appointments')
       .select(`
         *,
         director:directors(*)
@@ -79,7 +79,7 @@ export const directors = {
     }
   ): Promise<DirectorAppointment> {
     const { data, error } = await supabase
-      .from('outreach.director_appointments')
+      .from('director_appointments')
       .upsert(
         {
           director_id: directorId,
@@ -125,7 +125,7 @@ export const directors = {
 
   async getNetworkOpportunities(practiceId: string): Promise<NetworkOpportunity[]> {
     const { data: networks, error } = await supabase
-      .from('outreach.director_networks')
+      .from('director_networks')
       .select(`
         *,
         source_company_data:companies!director_networks_source_company_fkey(company_name),
@@ -142,7 +142,7 @@ export const directors = {
     ]
 
     const { data: directorsData } = await supabase
-      .from('outreach.directors')
+      .from('directors')
       .select('id, name')
       .in('id', directorIds)
 
