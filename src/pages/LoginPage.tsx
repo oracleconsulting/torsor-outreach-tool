@@ -45,7 +45,14 @@ export function LoginPage() {
         navigate({ to: '/' })
       }
     } catch (err: any) {
-      const errorMsg = err.message || 'Failed to sign in. Please check your credentials.'
+      console.error('Login error:', err)
+      // Provide more helpful error messages
+      let errorMsg = 'Failed to sign in. Please check your credentials.'
+      if (err.message?.includes('Invalid login credentials')) {
+        errorMsg = 'Invalid email or password. If you\'ve forgotten your password, please contact your administrator to reset it.'
+      } else if (err.message) {
+        errorMsg = err.message
+      }
       setError(errorMsg)
       toast.error(errorMsg)
     } finally {
