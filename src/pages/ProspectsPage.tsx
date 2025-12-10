@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { Search, CheckCircle, Shield, Download, ChevronDown } from 'lucide-react'
+import { Search, CheckCircle } from 'lucide-react'
 import { useProspects, useUpdateProspect, useDeleteProspect } from '../hooks/useProspects'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
@@ -9,7 +9,7 @@ import { BulkEnrichmentModal } from '../components/enrichment/BulkEnrichmentModa
 import { AddressStatusCell } from '../components/enrichment/AddressStatusCell'
 import { FitScoreBadge } from '../components/fit/FitScoreBadge'
 import { useFitScore } from '../hooks/useFitScore'
-import type { ProspectStatus, Prospect } from '../types'
+import type { ProspectStatus } from '../types'
 import type { CompanyForEnrichment } from '../types/enrichment'
 
 export function ProspectsPage() {

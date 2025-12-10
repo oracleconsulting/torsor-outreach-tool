@@ -237,7 +237,7 @@ export function EventsPage() {
                   companyNumber={selectedEvent.company_number}
                   companyName={selectedEvent.company?.company_name || selectedEvent.company_number}
                   triggerEvent={selectedEvent}
-                  onDraftGenerated={(draft) => {
+                  onDraftGenerated={() => {
                     toast.success('Draft generated!')
                     // Optionally mark event as handled
                   }}

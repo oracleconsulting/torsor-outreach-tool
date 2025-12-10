@@ -1,37 +1,10 @@
 import { supabase } from '../lib/supabase'
-import { companiesHouse } from './companiesHouse'
 import type {
   Director,
-  DirectorAppointment,
-  DirectorNetwork,
-  NetworkOpportunity,
   DirectorNetworkDetail,
-  Appointment,
 } from '../types/directors'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-
-async function getOfficerAppointments(officerId: string): Promise<any> {
-  const { data: { session } } = await supabase.auth.getSession()
-
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/companies-house`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session?.access_token || ''}`,
-    },
-    body: JSON.stringify({
-      action: 'getOfficerAppointments',
-      officerId,
-    }),
-  })
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch officer appointments: ${response.statusText}`)
-  }
-
-  return response.json()
-}
 
 export const directors = {
   async getDirectorByOfficerId(officerId: string): Promise<Director | null> {

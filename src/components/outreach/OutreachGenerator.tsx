@@ -16,7 +16,6 @@ interface OutreachGeneratorProps {
 export function OutreachGenerator({
   practiceId,
   companyNumber,
-  companyName,
   triggerEvent,
   networkConnection,
   onDraftGenerated,
@@ -194,4 +193,6 @@ export function OutreachGenerator({
     </div>
   )
 }
+
+
 

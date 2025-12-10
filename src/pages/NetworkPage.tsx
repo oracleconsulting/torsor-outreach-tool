@@ -9,7 +9,6 @@ import { Link } from '@tanstack/react-router'
 export function NetworkPage() {
   const { user } = useAuth()
   const [practiceId, setPracticeId] = useState<string | undefined>()
-  const [buildingFor, setBuildingFor] = useState<string | null>(null)
 
   useEffect(() => {
     const getPracticeId = async () => {
@@ -25,20 +24,6 @@ export function NetworkPage() {
   }, [user])
 
   const { data: opportunities, isLoading } = useNetworkOpportunities(practiceId)
-  const buildNetwork = useBuildNetwork()
-
-  const handleBuildNetwork = async (companyNumber: string) => {
-    if (!practiceId) return
-    setBuildingFor(companyNumber)
-    try {
-      await buildNetwork.mutateAsync({ practiceId, companyNumber })
-      toast.success('Network built successfully!')
-    } catch (error: any) {
-      toast.error('Error building network: ' + error.message)
-    } finally {
-      setBuildingFor(null)
-    }
-  }
 
   // Get unique source clients
   const sourceClients = opportunities
@@ -192,4 +177,6 @@ export function NetworkPage() {
     </div>
   )
 }
+
+
 
