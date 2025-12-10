@@ -124,133 +124,27 @@ export const directors = {
     practiceId: string,
     clientCompanyNumber: string
   ): Promise<DirectorNetworkDetail[]> {
-    // 1. Get all officers of the client company from Companies House
-    const officers = await companiesHouse.getCompanyOfficers(clientCompanyNumber, false)
+    const { data: { session } } = await supabase.auth.getSession()
 
-    if (!officers || officers.length === 0) {
-      return []
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/build-director-network`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token || ''}`,
+      },
+      body: JSON.stringify({
+        practiceId,
+        companyNumber: clientCompanyNumber,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || `HTTP ${response.status}`)
     }
 
-    // Filter to active directors
-    const activeDirectors = officers.filter(
-      (o) =>
-        !o.resigned_on &&
-        ['director', 'llp member', 'secretary'].includes(o.officer_role.toLowerCase())
-    )
-
-    const networks: DirectorNetworkDetail[] = []
-
-    for (const officer of activeDirectors) {
-      // 2. Get or create director record
-      const director = await this.getOrCreateDirector({
-        officer_id: officer.links?.officer?.appointments?.split('/').pop(),
-        name: officer.name,
-        date_of_birth: officer.date_of_birth?.month
-          ? `${officer.date_of_birth.month}/${officer.date_of_birth.year}`
-          : undefined,
-        nationality: officer.nationality,
-      })
-
-      // 3. Save current appointment
-      await this.saveAppointment(director.id, {
-        company_number: clientCompanyNumber,
-        role: officer.officer_role,
-        appointed_on: officer.appointed_on,
-        resigned_on: officer.resigned_on,
-      })
-
-      // 4. Get all appointments for this director from Companies House
-      let otherAppointments: Appointment[] = []
-      if (officer.links?.officer?.appointments) {
-        try {
-          const appointmentsData = await getOfficerAppointments(
-            officer.links.officer.appointments
-          )
-
-          if (appointmentsData.items) {
-            otherAppointments = await Promise.all(
-              appointmentsData.items
-                .filter(
-                  (a: any) =>
-                    a.appointed_to?.company_number !== clientCompanyNumber && !a.resigned_on
-                )
-                .map(async (appt: any) => {
-                  // Get company details
-                  const company = await companiesHouse.getCompany(
-                    appt.appointed_to.company_number
-                  )
-
-                  return {
-                    company_number: appt.appointed_to.company_number,
-                    company_name: appt.appointed_to.company_name || company?.company_name || '',
-                    role: appt.officer_role,
-                    appointed_on: appt.appointed_on,
-                    resigned_on: appt.resigned_on,
-                    is_active: !appt.resigned_on,
-                    sector: company?.sic_codes?.[0],
-                    status: company?.company_status,
-                  }
-                })
-            )
-          }
-
-          // Save appointments to database
-          for (const appt of otherAppointments) {
-            await this.saveAppointment(director.id, {
-              company_number: appt.company_number,
-              role: appt.role,
-              appointed_on: appt.appointed_on,
-              resigned_on: appt.resigned_on,
-            })
-          }
-        } catch (error) {
-          console.error(`Error fetching appointments for ${officer.name}:`, error)
-        }
-      }
-
-      // 5. Store network connections
-      for (const opp of otherAppointments.filter((a) => a.is_active && a.status === 'active')) {
-        await supabase.from('outreach.director_networks').upsert(
-          {
-            practice_id: practiceId,
-            source_company: clientCompanyNumber,
-            target_company: opp.company_number,
-            connection_type: 'direct',
-            connecting_directors: [director.id],
-            connection_strength: 1,
-            target_company_name: opp.company_name,
-            target_sector: opp.sector,
-            last_updated: new Date().toISOString(),
-          },
-          {
-            onConflict: 'practice_id,source_company,target_company',
-          }
-        )
-      }
-
-      networks.push({
-        directorId: director.id,
-        directorName: director.name,
-        appointments: otherAppointments,
-        totalCompanies: otherAppointments.length + 1, // +1 for client
-        activeCompanies: otherAppointments.filter((a) => a.is_active).length,
-        yourClients: [clientCompanyNumber],
-        opportunities: otherAppointments
-          .filter((a) => a.is_active && a.status === 'active')
-          .map((a) => ({
-            company_number: a.company_number,
-            company_name: a.company_name,
-            connection_strength: 'direct' as const,
-            connection_path: [director.name],
-            source_client: clientCompanyNumber,
-            connecting_directors: [director.id],
-            sector: a.sector,
-            status: a.status,
-          })),
-      })
-    }
-
-    return networks
+    const result = await response.json()
+    return result.networks || []
   },
 
   async getNetworkOpportunities(practiceId: string): Promise<NetworkOpportunity[]> {

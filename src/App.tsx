@@ -9,6 +9,7 @@ import { AddressSearchPage } from './pages/AddressSearchPage'
 import { ProspectsPage } from './pages/ProspectsPage'
 import { CovenantsPage } from './pages/CovenantsPage'
 import { SearchHistoryPage } from './pages/SearchHistoryPage'
+import { EventsPage } from './pages/EventsPage'
 import { supabase } from './lib/supabase'
 
 const queryClient = new QueryClient({

@@ -1,6 +1,10 @@
-import { useState } from 'react'
-import { X, Building2, Calendar, MapPin, FileText, Users, ExternalLink } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, Building2, Calendar, MapPin, FileText, Users, ExternalLink, Eye, EyeOff } from 'lucide-react'
 import { useCompany, useCompanyOfficers, useCompanyFilings } from '../../hooks/useCompaniesHouse'
+import { useAddToWatchlist, useRemoveFromWatchlist, useWatchlist } from '../../hooks/useWatchlist'
+import { useAuth } from '../../hooks/useAuth'
+import { supabase } from '../../lib/supabase'
+import toast from 'react-hot-toast'
 
 interface CompanyModalProps {
   companyNumber: string
@@ -11,10 +15,49 @@ interface CompanyModalProps {
 
 export function CompanyModal({ companyNumber, isOpen, onClose, onSaveProspect }: CompanyModalProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'officers' | 'filings'>('overview')
+  const { user } = useAuth()
+  const [practiceId, setPracticeId] = useState<string | undefined>()
   
   const { data: company, isLoading: companyLoading } = useCompany(companyNumber)
   const { data: officers, isLoading: officersLoading } = useCompanyOfficers(companyNumber, false)
   const { data: filings, isLoading: filingsLoading } = useCompanyFilings(companyNumber, 10)
+  const { data: watchlist } = useWatchlist(practiceId)
+  const addToWatchlist = useAddToWatchlist()
+  const removeFromWatchlist = useRemoveFromWatchlist()
+
+  useEffect(() => {
+    const getPracticeId = async () => {
+      if (!user) return
+      const { data } = await supabase
+        .from('practice_members')
+        .select('practice_id')
+        .eq('user_id', user.id)
+        .single()
+      if (data) setPracticeId(data.practice_id)
+    }
+    getPracticeId()
+  }, [user])
+
+  const isWatched = watchlist?.some((w) => w.company_number === companyNumber) || false
+
+  const handleToggleWatch = async () => {
+    if (!practiceId) {
+      toast.error('Please log in to watch companies')
+      return
+    }
+
+    try {
+      if (isWatched) {
+        await removeFromWatchlist.mutateAsync({ practiceId, companyNumber })
+        toast.success('Removed from watchlist')
+      } else {
+        await addToWatchlist.mutateAsync({ practiceId, companyNumber })
+        toast.success('Added to watchlist')
+      }
+    } catch (error: any) {
+      toast.error('Error updating watchlist: ' + error.message)
+    }
+  }
 
   if (!isOpen) return null
 
@@ -298,15 +341,36 @@ export function CompanyModal({ companyNumber, isOpen, onClose, onSaveProspect }:
 
           {/* Footer */}
           <div className="bg-gray-50 px-6 py-4 border-t flex items-center justify-between">
-            <a
-              href={`https://find-and-update.company-information.service.gov.uk/company/${companyNumber}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-primary hover:underline"
-            >
-              <ExternalLink className="h-4 w-4" />
-              View on Companies House
-            </a>
+            <div className="flex items-center gap-4">
+              <a
+                href={`https://find-and-update.company-information.service.gov.uk/company/${companyNumber}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-primary hover:underline"
+              >
+                <ExternalLink className="h-4 w-4" />
+                View on Companies House
+              </a>
+              {practiceId && (
+                <button
+                  onClick={handleToggleWatch}
+                  className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+                  disabled={addToWatchlist.isPending || removeFromWatchlist.isPending}
+                >
+                  {isWatched ? (
+                    <>
+                      <EyeOff className="h-4 w-4" />
+                      Remove from Watchlist
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-4 w-4" />
+                      Add to Watchlist
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={onClose}
