@@ -220,7 +220,7 @@ export function ProspectsPage() {
           ).length > 0 && (
             <button
               onClick={() => {
-                const needsEnrichment = prospectsList
+                const needsEnrichment: CompanyForEnrichment[] = prospectsList
                   .filter((p) => !p.enrichment_status || p.enrichment_status === 'not_attempted' || p.enrichment_status === 'not_found')
                   .map((p) => ({
                     company_number: p.company_number,
@@ -229,7 +229,7 @@ export function ProspectsPage() {
                     trading_address: p.enriched_address,
                     enrichment_status: p.enrichment_status,
                   }))
-                  .filter((c): c is CompanyForEnrichment => c !== null && !!c.registered_address)
+                  .filter((c) => c !== null && !!c.registered_address) as CompanyForEnrichment[]
                 setCompaniesToEnrich(needsEnrichment)
                 setEnrichmentOperation('find')
                 setEnrichmentModalOpen(true)
