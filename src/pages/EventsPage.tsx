@@ -6,11 +6,14 @@ import { useEffect } from 'react'
 import { Calendar, Users, Building2, AlertCircle, Sparkles, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useGenerateOutreach } from '../hooks/useOutreach'
+import { OutreachGenerator } from '../components/outreach/OutreachGenerator'
 
 export function EventsPage() {
   const { user } = useAuth()
   const [practiceId, setPracticeId] = useState<string | undefined>()
   const [selectedType, setSelectedType] = useState<string>('all')
+  const [selectedEvent, setSelectedEvent] = useState<any>(null)
+  const [showGenerator, setShowGenerator] = useState(false)
 
   useEffect(() => {
     const getPracticeId = async () => {
@@ -49,20 +52,9 @@ export function EventsPage() {
     }
   }
 
-  const handleGenerateDraft = async (event: any) => {
-    if (!practiceId) return
-    try {
-      await generateOutreach.mutateAsync({
-        practiceId,
-        companyNumber: event.company_number,
-        format: 'email_intro',
-        tone: 'professional',
-        triggerEvent: event,
-      })
-      toast.success('Outreach draft generated!')
-    } catch (error: any) {
-      toast.error('Error generating draft: ' + error.message)
-    }
+  const handleGenerateDraft = (event: any) => {
+    setSelectedEvent(event)
+    setShowGenerator(true)
   }
 
   const getEventIcon = (type: string) => {
@@ -208,6 +200,51 @@ export function EventsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Outreach Generator Modal */}
+      {showGenerator && selectedEvent && practiceId && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div
+              className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
+              onClick={() => {
+                setShowGenerator(false)
+                setSelectedEvent(null)
+              }}
+            />
+
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+              <div className="bg-white px-6 py-4 border-b flex items-center justify-between">
+                <h2 className="text-xl font-semibold">
+                  Generate Outreach for {selectedEvent.company?.company_name || selectedEvent.company_number}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowGenerator(false)
+                    setSelectedEvent(null)
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="px-6 py-6 max-h-[70vh] overflow-y-auto">
+                <OutreachGenerator
+                  practiceId={practiceId}
+                  companyNumber={selectedEvent.company_number}
+                  companyName={selectedEvent.company?.company_name || selectedEvent.company_number}
+                  triggerEvent={selectedEvent}
+                  onDraftGenerated={(draft) => {
+                    toast.success('Draft generated!')
+                    // Optionally mark event as handled
+                  }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
