@@ -26,6 +26,8 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
     }
   }
 
+  const [confirmAddresses, setConfirmAddresses] = useState(true)
+
   const handleImport = async () => {
     if (!file) {
       toast.error('Please select a CSV file first')
@@ -34,7 +36,9 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
 
     setIsImporting(true)
     try {
-      const importResult = await directorImport.importFromCSV(file, practiceId)
+      const importResult = await directorImport.importFromCSV(file, practiceId, {
+        confirmAddresses,
+      })
       setResult(importResult)
       
       if (importResult.errors.length === 0) {
@@ -125,31 +129,49 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
         </div>
       </div>
 
-      {/* Import Button */}
+      {/* Options */}
       {file && (
-        <Button
-          onClick={handleImport}
-          disabled={isImporting}
-          className="w-full"
-        >
-          {isImporting ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Importing...
-            </>
-          ) : (
-            <>
-              <Upload className="h-4 w-4 mr-2" />
-              Import Director Addresses
-            </>
-          )}
-        </Button>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 p-4 bg-gray-50 rounded-lg border">
+            <input
+              type="checkbox"
+              id="confirm-addresses"
+              checked={confirmAddresses}
+              onChange={(e) => setConfirmAddresses(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <label htmlFor="confirm-addresses" className="text-sm cursor-pointer">
+              <span className="font-medium">Confirm addresses with AI</span>
+              <span className="text-gray-600 block text-xs mt-1">
+                Use Perplexity AI to verify and correct director contact addresses (not registered office addresses)
+              </span>
+            </label>
+          </div>
+          
+          <Button
+            onClick={handleImport}
+            disabled={isImporting}
+            className="w-full"
+          >
+            {isImporting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Importing{confirmAddresses ? ' and confirming addresses' : ''}...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                Import Director Addresses
+              </>
+            )}
+          </Button>
+        </div>
       )}
 
       {/* Results */}
       {result && (
         <div className="space-y-4">
-          <div className="grid grid-cols-4 gap-4">
+          <div className={`grid gap-4 ${result.confirmed > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
             <div className="p-4 bg-gray-50 rounded-lg">
               <div className="text-2xl font-bold">{result.total}</div>
               <div className="text-sm text-gray-600">Total Rows</div>
@@ -166,6 +188,12 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
               <div className="text-2xl font-bold text-purple-600">{result.created}</div>
               <div className="text-sm text-gray-600">Created</div>
             </div>
+            {result.confirmed > 0 && (
+              <div className="p-4 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">{result.confirmed}</div>
+                <div className="text-sm text-gray-600">AI Confirmed</div>
+              </div>
+            )}
           </div>
 
           {result.errors.length > 0 && (

@@ -2,31 +2,85 @@ import { supabase } from '../lib/supabase'
 import type { Director } from '../types/directors'
 
 export interface DirectorCSVRow {
-  // Required fields for matching
-  name: string
-  officer_id?: string
-  company_number?: string // If provided, helps match to specific appointment
+  // Company info (for matching)
+  company_name?: string
+  company_number?: string
+  registered_number?: string
   
-  // Address fields
+  // Director name components (auto-detected)
+  dir_title?: string
+  dir_name_prefix?: string
+  dir_first_name?: string
+  dir_middle_names?: string
+  dir_surname?: string
+  dir_initial?: string
+  dir_full_name?: string // Constructed or provided
+  
+  // Director address (auto-detected)
+  dir_address_line_1?: string
+  dir_address_line_2?: string
+  dir_address_line_3?: string
+  dir_town?: string
+  dir_postcode?: string
+  dir_country?: string
+  
+  // Director details
+  dir_date_of_birth?: string
+  dir_nationality?: string
+  dir_position?: string
+  dir_occupation?: string
+  
+  // Trading address (for context, not director address)
   trading_address_line_1?: string
   trading_address_line_2?: string
-  trading_locality?: string
-  trading_region?: string
-  trading_postal_code?: string
-  trading_country?: string
+  trading_address_line_3?: string
+  trading_address_line_4?: string
+  trading_town?: string
+  trading_postcode?: string
   
-  contact_address_line_1?: string
-  contact_address_line_2?: string
-  contact_locality?: string
-  contact_region?: string
-  contact_postal_code?: string
-  contact_country?: string
+  // Registered office (for context, not director address)
+  registered_office_address_line_1?: string
+  registered_office_address_line_2?: string
+  registered_office_address_line_3?: string
+  registered_office_address_line_4?: string
+  registered_office_town?: string
+  registered_office_postcode?: string
+  registered_office_country?: string
   
-  // Contact details
+  // Contact details (if available)
   email?: string
   phone?: string
   linkedin_url?: string
-  preferred_contact_method?: 'email' | 'phone' | 'address' | 'linkedin'
+  
+  // Raw row data for reference
+  _raw?: Record<string, string>
+}
+
+export interface ColumnMapping {
+  // Company
+  company_name?: string
+  company_number?: string
+  
+  // Director name
+  dir_title?: string
+  dir_first_name?: string
+  dir_middle_names?: string
+  dir_surname?: string
+  dir_full_name?: string
+  
+  // Director address
+  dir_address_line_1?: string
+  dir_address_line_2?: string
+  dir_address_line_3?: string
+  dir_town?: string
+  dir_postcode?: string
+  dir_country?: string
+  
+  // Director details
+  dir_date_of_birth?: string
+  dir_nationality?: string
+  dir_position?: string
+  dir_occupation?: string
 }
 
 export interface ImportResult {
@@ -34,63 +88,178 @@ export interface ImportResult {
   matched: number
   updated: number
   created: number
-  errors: Array<{ row: number; error: string; data: DirectorCSVRow }>
+  confirmed: number // Addresses confirmed via AI
+  errors: Array<{ row: number; error: string; data: Partial<DirectorCSVRow> }>
+  warnings: Array<{ row: number; warning: string; data: Partial<DirectorCSVRow> }>
 }
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 
 export const directorImport = {
   /**
-   * Parse CSV file and import director addresses
+   * Auto-detect column mappings from CSV headers
+   */
+  detectColumnMappings(headers: string[]): ColumnMapping {
+    const mapping: ColumnMapping = {}
+    const lowerHeaders = headers.map(h => h.toLowerCase().trim())
+    
+    // Company columns
+    mapping.company_name = this.findColumn(lowerHeaders, ['company name', 'company_name', 'company'])
+    mapping.company_number = this.findColumn(lowerHeaders, [
+      'registered number', 'registered_number', 'company number', 'company_number',
+      'company no', 'company_no', 'reg number', 'reg_number'
+    ])
+    
+    // Director name columns
+    mapping.dir_title = this.findColumn(lowerHeaders, ['dir title', 'dir_title', 'title', 'director title'])
+    mapping.dir_first_name = this.findColumn(lowerHeaders, ['dir first name', 'dir_first_name', 'first name', 'first_name', 'forename'])
+    mapping.dir_middle_names = this.findColumn(lowerHeaders, ['dir middle names', 'dir_middle_names', 'middle names', 'middle_names'])
+    mapping.dir_surname = this.findColumn(lowerHeaders, ['dir surname', 'dir_surname', 'surname', 'last name', 'last_name'])
+    mapping.dir_full_name = this.findColumn(lowerHeaders, ['dir full name', 'dir_full_name', 'full name', 'full_name', 'name', 'director name'])
+    
+    // Director address columns
+    mapping.dir_address_line_1 = this.findColumn(lowerHeaders, [
+      'dir address line 1', 'dir_address_line_1', 'dir address 1', 'director address line 1',
+      'director address 1', 'dir address', 'director address'
+    ])
+    mapping.dir_address_line_2 = this.findColumn(lowerHeaders, [
+      'dir address line 2', 'dir_address_line_2', 'dir address 2', 'director address line 2'
+    ])
+    mapping.dir_address_line_3 = this.findColumn(lowerHeaders, [
+      'dir address line 3', 'dir_address_line_3', 'dir address 3', 'director address line 3'
+    ])
+    mapping.dir_town = this.findColumn(lowerHeaders, [
+      'dir town', 'dir_town', 'director town', 'dir city', 'director city'
+    ])
+    mapping.dir_postcode = this.findColumn(lowerHeaders, [
+      'dir postcode', 'dir_postcode', 'director postcode', 'dir postal code', 'director postal code'
+    ])
+    mapping.dir_country = this.findColumn(lowerHeaders, [
+      'dir country', 'dir_country', 'director country'
+    ])
+    
+    // Director details
+    mapping.dir_date_of_birth = this.findColumn(lowerHeaders, [
+      'dir date of birth', 'dir_date_of_birth', 'date of birth', 'dob', 'director dob'
+    ])
+    mapping.dir_nationality = this.findColumn(lowerHeaders, [
+      'dir nationality', 'dir_nationality', 'nationality', 'director nationality'
+    ])
+    mapping.dir_position = this.findColumn(lowerHeaders, [
+      'dir position', 'dir_position', 'position', 'director position'
+    ])
+    mapping.dir_occupation = this.findColumn(lowerHeaders, [
+      'dir occupation', 'dir_occupation', 'occupation', 'director occupation'
+    ])
+    
+    return mapping
+  },
+
+  /**
+   * Find column index by matching against possible names
+   */
+  findColumn(headers: string[], possibleNames: string[]): string | undefined {
+    for (const name of possibleNames) {
+      const index = headers.findIndex(h => h.includes(name) || name.includes(h))
+      if (index !== -1) {
+        return headers[index]
+      }
+    }
+    return undefined
+  },
+
+  /**
+   * Parse CSV file and import director addresses with AI confirmation
    */
   async importFromCSV(
     file: File,
-    practiceId: string
+    practiceId: string,
+    options?: {
+      confirmAddresses?: boolean // Use Perplexity to confirm addresses
+      skipConfirmation?: boolean // Skip if address already confirmed
+    }
   ): Promise<ImportResult> {
     const result: ImportResult = {
       total: 0,
       matched: 0,
       updated: 0,
       created: 0,
+      confirmed: 0,
       errors: [],
+      warnings: [],
     }
 
     try {
       // Parse CSV
       const text = await file.text()
-      const rows = this.parseCSV(text)
+      const { headers, rows } = this.parseCSV(text)
+      
+      // Auto-detect column mappings
+      const mapping = this.detectColumnMappings(headers)
+      
       result.total = rows.length
 
       // Process each row
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i]
         try {
-          const directorRow = this.normalizeRow(row)
+          const directorRow = this.normalizeRow(row, mapping, headers)
+          
+          // Skip if no director name found
+          if (!directorRow.dir_full_name) {
+            result.warnings.push({
+              row: i + 1,
+              warning: 'No director name found in row',
+              data: directorRow,
+            })
+            continue
+          }
           
           // Find matching director
           const director = await this.findDirector(directorRow)
           
+          // Confirm address with Perplexity if requested
+          let confirmedAddress = null
+          if (options?.confirmAddresses && directorRow.dir_address_line_1) {
+            try {
+              confirmedAddress = await this.confirmDirectorAddress(
+                directorRow.dir_full_name,
+                directorRow,
+                directorRow.company_name || directorRow.company_number
+              )
+              if (confirmedAddress) {
+                result.confirmed++
+                // Update with confirmed address
+                directorRow.dir_address_line_1 = confirmedAddress.address_line_1
+                directorRow.dir_address_line_2 = confirmedAddress.address_line_2
+                directorRow.dir_town = confirmedAddress.locality
+                directorRow.dir_postcode = confirmedAddress.postal_code
+                directorRow.dir_country = confirmedAddress.country || 'United Kingdom'
+              }
+            } catch (error) {
+              result.warnings.push({
+                row: i + 1,
+                warning: `Address confirmation failed: ${(error as Error).message}`,
+                data: directorRow,
+              })
+            }
+          }
+          
           if (director) {
             // Update existing director
-            await this.updateDirectorAddress(director.id, directorRow, practiceId)
+            await this.updateDirectorAddress(director.id, directorRow, practiceId, confirmedAddress)
             result.matched++
             result.updated++
           } else {
             // Create new director if we have enough info
-            if (directorRow.name) {
-              await this.createDirectorWithAddress(directorRow, practiceId)
-              result.created++
-            } else {
-              result.errors.push({
-                row: i + 1,
-                error: 'No matching director found and insufficient data to create new',
-                data: directorRow,
-              })
-            }
+            await this.createDirectorWithAddress(directorRow, practiceId, confirmedAddress)
+            result.created++
           }
         } catch (error) {
           result.errors.push({
             row: i + 1,
             error: (error as Error).message,
-            data: row as DirectorCSVRow,
+            data: row as Partial<DirectorCSVRow>,
           })
         }
       }
@@ -102,11 +271,11 @@ export const directorImport = {
   },
 
   /**
-   * Parse CSV text into rows
+   * Parse CSV text into headers and rows
    */
-  parseCSV(text: string): Record<string, string>[] {
+  parseCSV(text: string): { headers: string[]; rows: Record<string, string>[] } {
     const lines = text.split('\n').filter((line) => line.trim())
-    if (lines.length === 0) return []
+    if (lines.length === 0) return { headers: [], rows: [] }
 
     // Parse header
     const headers = this.parseCSVLine(lines[0])
@@ -119,12 +288,12 @@ export const directorImport = {
 
       const row: Record<string, string> = {}
       headers.forEach((header, index) => {
-        row[header.trim().toLowerCase()] = values[index]?.trim() || ''
+        row[header] = values[index]?.trim() || ''
       })
       rows.push(row)
     }
 
-    return rows
+    return { headers, rows }
   },
 
   /**
@@ -163,73 +332,161 @@ export const directorImport = {
   },
 
   /**
-   * Normalize CSV row to DirectorCSVRow format
+   * Normalize CSV row using detected column mappings
    */
-  normalizeRow(row: Record<string, string>): DirectorCSVRow {
-    return {
-      name: row.name || row.director_name || row.full_name || '',
-      officer_id: row.officer_id || row.officerid || undefined,
-      company_number: row.company_number || row.companynumber || undefined,
-      
-      trading_address_line_1: row.trading_address_line_1 || row.trading_address || row.business_address_line_1 || undefined,
-      trading_address_line_2: row.trading_address_line_2 || row.business_address_line_2 || undefined,
-      trading_locality: row.trading_locality || row.trading_city || row.business_city || undefined,
-      trading_region: row.trading_region || row.trading_county || row.business_region || undefined,
-      trading_postal_code: row.trading_postal_code || row.trading_postcode || row.business_postcode || undefined,
-      trading_country: row.trading_country || row.business_country || 'United Kingdom',
-      
-      contact_address_line_1: row.contact_address_line_1 || row.contact_address || row.address_line_1 || undefined,
-      contact_address_line_2: row.contact_address_line_2 || row.address_line_2 || undefined,
-      contact_locality: row.contact_locality || row.contact_city || row.city || undefined,
-      contact_region: row.contact_region || row.contact_county || row.county || undefined,
-      contact_postal_code: row.contact_postal_code || row.contact_postcode || row.postcode || undefined,
-      contact_country: row.contact_country || row.country || 'United Kingdom',
-      
-      email: row.email || row.email_address || undefined,
-      phone: row.phone || row.phone_number || row.mobile || row.telephone || undefined,
-      linkedin_url: row.linkedin_url || row.linkedin || row.linkedin_profile || undefined,
-      preferred_contact_method: (row.preferred_contact_method || row.contact_method || 'email') as any,
+  normalizeRow(
+    row: Record<string, string>,
+    mapping: ColumnMapping,
+    originalHeaders: string[]
+  ): DirectorCSVRow {
+    const getValue = (key: string | undefined) => {
+      if (!key) return undefined
+      return row[key]?.trim() || undefined
     }
+
+    // Build full name from components or use provided
+    let fullName = getValue(mapping.dir_full_name)
+    if (!fullName && (mapping.dir_first_name || mapping.dir_surname)) {
+      const parts = [
+        getValue(mapping.dir_title),
+        getValue(mapping.dir_first_name),
+        getValue(mapping.dir_middle_names),
+        getValue(mapping.dir_surname),
+      ].filter(Boolean)
+      fullName = parts.join(' ')
+    }
+
+    return {
+      company_name: getValue(mapping.company_name),
+      company_number: getValue(mapping.company_number) || getValue(mapping.company_number),
+      registered_number: getValue(mapping.company_number),
+      
+      dir_title: getValue(mapping.dir_title),
+      dir_first_name: getValue(mapping.dir_first_name),
+      dir_middle_names: getValue(mapping.dir_middle_names),
+      dir_surname: getValue(mapping.dir_surname),
+      dir_full_name: fullName,
+      
+      dir_address_line_1: getValue(mapping.dir_address_line_1),
+      dir_address_line_2: getValue(mapping.dir_address_line_2),
+      dir_address_line_3: getValue(mapping.dir_address_line_3),
+      dir_town: getValue(mapping.dir_town),
+      dir_postcode: getValue(mapping.dir_postcode),
+      dir_country: getValue(mapping.dir_country) || 'United Kingdom',
+      
+      dir_date_of_birth: getValue(mapping.dir_date_of_birth),
+      dir_nationality: getValue(mapping.dir_nationality),
+      dir_position: getValue(mapping.dir_position),
+      dir_occupation: getValue(mapping.dir_occupation),
+      
+      _raw: row,
+    }
+  },
+
+  /**
+   * Confirm director address using Perplexity AI
+   */
+  async confirmDirectorAddress(
+    directorName: string,
+    addressData: DirectorCSVRow,
+    companyContext?: string
+  ): Promise<{
+    address_line_1: string
+    address_line_2?: string
+    locality: string
+    postal_code: string
+    country: string
+    confidence: 'high' | 'medium' | 'low'
+  } | null> {
+    const { data: { session } } = await supabase.auth.getSession()
+
+    // Build address string from available data
+    const addressParts = [
+      addressData.dir_address_line_1,
+      addressData.dir_address_line_2,
+      addressData.dir_address_line_3,
+      addressData.dir_town,
+      addressData.dir_postcode,
+      addressData.dir_country,
+    ].filter(Boolean)
+    
+    const addressString = addressParts.join(', ')
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/confirm-director-address`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token || ''}`,
+      },
+      body: JSON.stringify({
+        directorName,
+        address: addressString,
+        companyContext,
+        providedAddress: {
+          line1: addressData.dir_address_line_1,
+          line2: addressData.dir_address_line_2,
+          line3: addressData.dir_address_line_3,
+          town: addressData.dir_town,
+          postcode: addressData.dir_postcode,
+          country: addressData.dir_country,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || `HTTP ${response.status}`)
+    }
+
+    const result = await response.json()
+    return result.confirmedAddress || null
   },
 
   /**
    * Find director by name, officer_id, or company_number
    */
   async findDirector(row: DirectorCSVRow): Promise<Director | null> {
-    // Try by officer_id first (most reliable)
-    if (row.officer_id) {
-      const { data } = await supabase
-        .from('outreach.directors')
-        .select('*')
-        .eq('officer_id', row.officer_id)
-        .single()
-      
-      if (data) return data
-    }
+    if (!row.dir_full_name) return null
 
-    // Try by name + company_number (if provided)
-    if (row.name && row.company_number) {
-      // Find director through appointment
+    // Try by name + company_number (if provided) - most reliable for CSV imports
+    if (row.company_number) {
       const { data: appointment } = await supabase
         .from('outreach.director_appointments')
         .select('director_id, director:directors(*)')
         .eq('company_number', row.company_number)
-        .ilike('director:directors.name', `%${row.name}%`)
-        .single()
-      
-      if (appointment?.director) return appointment.director as Director
+        .ilike('director:directors.name', `%${row.dir_full_name.split(' ').pop()}%`) // Match on surname
+        .limit(5)
+
+      if (appointment && appointment.length > 0) {
+        // Find best match by full name similarity
+        const bestMatch = appointment.find(a => {
+          const directorName = (a.director as any)?.name || ''
+          return directorName.toLowerCase().includes(row.dir_full_name!.toLowerCase()) ||
+                 row.dir_full_name!.toLowerCase().includes(directorName.toLowerCase())
+        })
+        
+        if (bestMatch?.director) return bestMatch.director as Director
+        // Fallback to first match
+        if (appointment[0]?.director) return appointment[0].director as Director
+      }
     }
 
     // Try by name only (fuzzy match)
-    if (row.name) {
-      const { data } = await supabase
-        .from('outreach.directors')
-        .select('*')
-        .ilike('name', `%${row.name}%`)
-        .limit(1)
-        .single()
+    const { data } = await supabase
+      .from('outreach.directors')
+      .select('*')
+      .ilike('name', `%${row.dir_full_name.split(' ').pop()}%`) // Match on surname
+      .limit(5)
+
+    if (data && data.length > 0) {
+      // Find best match
+      const bestMatch = data.find(d => {
+        const directorName = d.name.toLowerCase()
+        const searchName = row.dir_full_name!.toLowerCase()
+        return directorName.includes(searchName) || searchName.includes(directorName)
+      })
       
-      if (data) return data
+      return bestMatch || data[0]
     }
 
     return null
@@ -241,52 +498,42 @@ export const directorImport = {
   async updateDirectorAddress(
     directorId: string,
     row: DirectorCSVRow,
-    practiceId: string
+    practiceId: string,
+    confirmedAddress?: any
   ): Promise<void> {
     const updateData: any = {
       address_source: 'csv_import',
       address_verified_at: new Date().toISOString(),
     }
 
-    // Build trading address JSONB
-    if (
-      row.trading_address_line_1 ||
-      row.trading_locality ||
-      row.trading_postal_code
-    ) {
-      updateData.trading_address = {
-        address_line_1: row.trading_address_line_1 || null,
-        address_line_2: row.trading_address_line_2 || null,
-        locality: row.trading_locality || null,
-        region: row.trading_region || null,
-        postal_code: row.trading_postal_code || null,
-        country: row.trading_country || 'United Kingdom',
-      }
+    // Use confirmed address if available, otherwise use provided
+    const address = confirmedAddress || {
+      address_line_1: row.dir_address_line_1,
+      address_line_2: row.dir_address_line_2 || row.dir_address_line_3,
+      locality: row.dir_town,
+      postal_code: row.dir_postcode,
+      country: row.dir_country || 'United Kingdom',
     }
 
-    // Build contact address JSONB
-    if (
-      row.contact_address_line_1 ||
-      row.contact_locality ||
-      row.contact_postal_code
-    ) {
+    // Build contact address JSONB (this is the director's personal address, not registered office)
+    if (address.address_line_1 || address.locality || address.postal_code) {
       updateData.contact_address = {
-        address_line_1: row.contact_address_line_1 || null,
-        address_line_2: row.contact_address_line_2 || null,
-        locality: row.contact_locality || null,
-        region: row.contact_region || null,
-        postal_code: row.contact_postal_code || null,
-        country: row.contact_country || 'United Kingdom',
+        address_line_1: address.address_line_1 || null,
+        address_line_2: address.address_line_2 || null,
+        locality: address.locality || null,
+        region: null, // Not typically in director addresses
+        postal_code: address.postal_code || null,
+        country: address.country || 'United Kingdom',
+      }
+      
+      if (confirmedAddress) {
+        updateData.address_source = 'csv_import_ai_confirmed'
       }
     }
 
-    // Add contact details
-    if (row.email) updateData.email = row.email
-    if (row.phone) updateData.phone = row.phone
-    if (row.linkedin_url) updateData.linkedin_url = row.linkedin_url
-    if (row.preferred_contact_method) {
-      updateData.preferred_contact_method = row.preferred_contact_method
-    }
+    // Add director details
+    if (row.dir_date_of_birth) updateData.date_of_birth = row.dir_date_of_birth
+    if (row.dir_nationality) updateData.nationality = row.dir_nationality
 
     const { error } = await supabase
       .from('outreach.directors')
@@ -301,53 +548,43 @@ export const directorImport = {
    */
   async createDirectorWithAddress(
     row: DirectorCSVRow,
-    practiceId: string
+    practiceId: string,
+    confirmedAddress?: any
   ): Promise<Director> {
+    if (!row.dir_full_name) {
+      throw new Error('Director name is required')
+    }
+
     const directorData: any = {
-      name: row.name,
-      officer_id: row.officer_id || undefined,
-      address_source: 'csv_import',
+      name: row.dir_full_name,
+      address_source: confirmedAddress ? 'csv_import_ai_confirmed' : 'csv_import',
       address_verified_at: new Date().toISOString(),
     }
 
-    // Add addresses if provided
-    if (
-      row.trading_address_line_1 ||
-      row.trading_locality ||
-      row.trading_postal_code
-    ) {
-      directorData.trading_address = {
-        address_line_1: row.trading_address_line_1 || null,
-        address_line_2: row.trading_address_line_2 || null,
-        locality: row.trading_locality || null,
-        region: row.trading_region || null,
-        postal_code: row.trading_postal_code || null,
-        country: row.trading_country || 'United Kingdom',
-      }
+    // Use confirmed address if available
+    const address = confirmedAddress || {
+      address_line_1: row.dir_address_line_1,
+      address_line_2: row.dir_address_line_2 || row.dir_address_line_3,
+      locality: row.dir_town,
+      postal_code: row.dir_postcode,
+      country: row.dir_country || 'United Kingdom',
     }
 
-    if (
-      row.contact_address_line_1 ||
-      row.contact_locality ||
-      row.contact_postal_code
-    ) {
+    // Add contact address
+    if (address.address_line_1 || address.locality || address.postal_code) {
       directorData.contact_address = {
-        address_line_1: row.contact_address_line_1 || null,
-        address_line_2: row.contact_address_line_2 || null,
-        locality: row.contact_locality || null,
-        region: row.contact_region || null,
-        postal_code: row.contact_postal_code || null,
-        country: row.contact_country || 'United Kingdom',
+        address_line_1: address.address_line_1 || null,
+        address_line_2: address.address_line_2 || null,
+        locality: address.locality || null,
+        region: null,
+        postal_code: address.postal_code || null,
+        country: address.country || 'United Kingdom',
       }
     }
 
-    // Add contact details
-    if (row.email) directorData.email = row.email
-    if (row.phone) directorData.phone = row.phone
-    if (row.linkedin_url) directorData.linkedin_url = row.linkedin_url
-    if (row.preferred_contact_method) {
-      directorData.preferred_contact_method = row.preferred_contact_method
-    }
+    // Add director details
+    if (row.dir_date_of_birth) directorData.date_of_birth = row.dir_date_of_birth
+    if (row.dir_nationality) directorData.nationality = row.dir_nationality
 
     const { data, error } = await supabase
       .from('outreach.directors')
@@ -356,7 +593,18 @@ export const directorImport = {
       .single()
 
     if (error) throw error
+    
+    // If we have a company_number, create appointment link
+    if (row.company_number) {
+      await supabase.from('outreach.director_appointments').insert({
+        director_id: data.id,
+        company_number: row.company_number,
+        role: row.dir_position || 'director',
+      }).catch(() => {
+        // Ignore errors - appointment might already exist
+      })
+    }
+    
     return data
   },
 }
-
