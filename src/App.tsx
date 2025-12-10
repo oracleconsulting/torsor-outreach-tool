@@ -119,6 +119,13 @@ const historyRoute = createRoute({
   beforeLoad: requireAuth,
 })
 
+const eventsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/events',
+  component: EventsPage,
+  beforeLoad: requireAuth,
+})
+
 // Create route tree
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -128,6 +135,7 @@ const routeTree = rootRoute.addChildren([
   prospectsRoute,
   covenantsRoute,
   historyRoute,
+  eventsRoute,
 ])
 
 // Create router

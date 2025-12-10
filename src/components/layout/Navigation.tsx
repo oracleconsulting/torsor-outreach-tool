@@ -1,6 +1,9 @@
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { Building2, Search, MapPin, Users, Shield, History, LogOut } from 'lucide-react'
+import { Building2, Search, MapPin, Users, Shield, History, LogOut, Bell } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
+import { usePendingEvents } from '../../hooks/useWatchlist'
+import { supabase } from '../../lib/supabase'
+import { useEffect, useState } from 'react'
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: Building2 },
@@ -9,12 +12,30 @@ const navItems = [
   { path: '/prospects', label: 'Prospects', icon: Users },
   { path: '/covenants', label: 'Covenants', icon: Shield },
   { path: '/history', label: 'History', icon: History },
+  { path: '/events', label: 'Events', icon: Bell },
 ]
 
 export function Navigation() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
+  const [practiceId, setPracticeId] = useState<string | undefined>()
+
+  useEffect(() => {
+    const getPracticeId = async () => {
+      if (!user) return
+      const { data } = await supabase
+        .from('practice_members')
+        .select('practice_id')
+        .eq('user_id', user.id)
+        .single()
+      if (data) setPracticeId(data.practice_id)
+    }
+    getPracticeId()
+  }, [user])
+
+  const { data: pendingEvents } = usePendingEvents(practiceId)
+  const eventCount = pendingEvents?.length || 0
 
   const handleSignOut = async () => {
     await signOut()
@@ -35,11 +56,12 @@ export function Navigation() {
               {navItems.map((item) => {
                 const Icon = item.icon
                 const isActive = location.pathname === item.path
+                const isEvents = item.path === '/events'
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
                       isActive
                         ? 'bg-primary/10 text-primary'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -47,6 +69,11 @@ export function Navigation() {
                   >
                     <Icon className="h-4 w-4" />
                     {item.label}
+                    {isEvents && eventCount > 0 && (
+                      <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        {eventCount > 9 ? '9+' : eventCount}
+                      </span>
+                    )}
                   </Link>
                 )
               })}
