@@ -286,7 +286,7 @@ export const directorImport = {
     const lines = text.split('\n').filter((line) => line.trim())
     if (lines.length === 0) return { headers: [], rows: [] }
 
-    // Parse header
+    // Parse header - keep original case for mapping, but also store lowercase for lookup
     const headers = this.parseCSVLine(lines[0])
     const rows: Record<string, string>[] = []
 
@@ -297,7 +297,12 @@ export const directorImport = {
 
       const row: Record<string, string> = {}
       headers.forEach((header, index) => {
-        row[header] = values[index]?.trim() || ''
+        const originalHeader = header.trim()
+        const lowerHeader = originalHeader.toLowerCase()
+        const value = values[index]?.trim() || ''
+        // Store both original and lowercase keys for flexible lookup
+        row[originalHeader] = value
+        row[lowerHeader] = value
       })
       rows.push(row)
     }
