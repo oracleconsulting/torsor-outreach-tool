@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { Client } from 'https://deno.land/x/postgres@v0.17.0/mod.ts'
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,6 +9,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const DATABASE_URL = Deno.env.get('DATABASE_URL') || Deno.env.get('SUPABASE_DB_URL')!
 
 interface ImportDirectorsRequest {
   practiceId: string
@@ -15,20 +17,8 @@ interface ImportDirectorsRequest {
     name: string
     company_number?: string
     company_name?: string
-    trading_address?: {
-      address_line_1?: string
-      address_line_2?: string
-      locality?: string
-      postal_code?: string
-      country?: string
-    }
-    contact_address?: {
-      address_line_1?: string
-      address_line_2?: string
-      locality?: string
-      postal_code?: string
-      country?: string
-    }
+    trading_address?: any
+    contact_address?: any
     email?: string
     phone?: string
     linkedin_url?: string
@@ -55,158 +45,104 @@ serve(async (req) => {
       )
     }
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-
     const results = {
       created: 0,
       updated: 0,
       errors: [] as Array<{ index: number; error: string }>,
     }
 
-    for (let i = 0; i < directors.length; i++) {
-      const director = directors[i]
-      
-      try {
-        if (!director.name) {
-          results.errors.push({ index: i, error: 'Director name is required' })
-          continue
-        }
+    // Use Postgres client for direct database access
+    const client = new Client(DATABASE_URL)
+    await client.connect()
 
-        // Find existing director by name using raw SQL query
-        let directorId: string | null = null
+    try {
+      for (let i = 0; i < directors.length; i++) {
+        const director = directors[i]
         
-        const { data: existingDirectors, error: findError } = await supabase.rpc('exec_sql', {
-          query: `SELECT id FROM outreach.directors WHERE name = $1 LIMIT 1`,
-          params: [director.name],
-        }).catch(async () => {
-          // Fallback: use direct REST API call with service role
-          const response = await fetch(
-            `${SUPABASE_URL}/rest/v1/directors?name=eq.${encodeURIComponent(director.name)}&select=id&limit=1`,
-            {
-              headers: {
-                'apikey': SUPABASE_SERVICE_KEY,
-                'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/vnd.pgjson.object+json',
-              },
-            }
-          )
-          if (response.ok) {
-            const data = await response.json()
-            return { data: Array.isArray(data) ? data : [data] }
+        try {
+          if (!director.name) {
+            results.errors.push({ index: i, error: 'Director name is required' })
+            continue
           }
-          return { data: null, error: null }
-        })
 
-        if (existingDirectors && Array.isArray(existingDirectors) && existingDirectors.length > 0) {
-          directorId = existingDirectors[0].id
-        } else if (existingDirectors && !Array.isArray(existingDirectors) && existingDirectors.id) {
-          directorId = existingDirectors.id
-        }
-
-        const directorData: any = {
-          name: director.name,
-          address_source: director.address_source || 'csv_import',
-          address_verified_at: director.address_verified_at || new Date().toISOString(),
-        }
-
-        if (director.trading_address) {
-          directorData.trading_address = director.trading_address
-        }
-
-        if (director.contact_address) {
-          directorData.contact_address = director.contact_address
-        }
-
-        if (director.email) directorData.email = director.email
-        if (director.phone) directorData.phone = director.phone
-        if (director.linkedin_url) directorData.linkedin_url = director.linkedin_url
-        if (director.preferred_contact_method) {
-          directorData.preferred_contact_method = director.preferred_contact_method
-        }
-        if (director.date_of_birth) directorData.date_of_birth = director.date_of_birth
-        if (director.nationality) directorData.nationality = director.nationality
-
-        // Use REST API directly with service role to access outreach schema
-        const restUrl = `${SUPABASE_URL}/rest/v1`
-        const headers = {
-          'apikey': SUPABASE_SERVICE_KEY,
-          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/vnd.pgjson.object+json',
-          'Prefer': 'return=representation',
-        }
-
-        if (directorId) {
-          // Update existing
-          const updateResponse = await fetch(
-            `${restUrl}/directors?id=eq.${directorId}`,
-            {
-              method: 'PATCH',
-              headers: {
-                ...headers,
-                'Content-Profile': 'outreach',
-              },
-              body: JSON.stringify(directorData),
-            }
+          // Find existing director by name
+          const findResult = await client.queryObject<{ id: string }>(
+            `SELECT id FROM outreach.directors WHERE name = $1 LIMIT 1`,
+            [director.name]
           )
 
-          if (!updateResponse.ok) {
-            const errorText = await updateResponse.text()
-            throw new Error(`Update failed: ${errorText}`)
+          const directorId = findResult.rows.length > 0 ? findResult.rows[0].id : null
+
+          const directorData: any = {
+            name: director.name,
+            address_source: director.address_source || 'csv_import',
+            address_verified_at: director.address_verified_at || new Date().toISOString(),
           }
-          results.updated++
-        } else {
-          // Create new
-          const createResponse = await fetch(
-            `${restUrl}/directors`,
-            {
-              method: 'POST',
-              headers: {
-                ...headers,
-                'Content-Profile': 'outreach',
-              },
-              body: JSON.stringify(directorData),
+
+          if (director.trading_address) {
+            directorData.trading_address = JSON.stringify(director.trading_address)
+          }
+
+          if (director.contact_address) {
+            directorData.contact_address = JSON.stringify(director.contact_address)
+          }
+
+          if (director.email) directorData.email = director.email
+          if (director.phone) directorData.phone = director.phone
+          if (director.linkedin_url) directorData.linkedin_url = director.linkedin_url
+          if (director.preferred_contact_method) {
+            directorData.preferred_contact_method = director.preferred_contact_method
+          }
+          if (director.date_of_birth) directorData.date_of_birth = director.date_of_birth
+          if (director.nationality) directorData.nationality = director.nationality
+
+          if (directorId) {
+            // Update existing
+            const updateFields = Object.keys(directorData)
+              .map((key, idx) => `${key} = $${idx + 2}`)
+              .join(', ')
+            
+            await client.queryObject(
+              `UPDATE outreach.directors SET ${updateFields} WHERE id = $1`,
+              [directorId, ...Object.values(directorData)]
+            )
+            results.updated++
+          } else {
+            // Create new
+            const insertFields = Object.keys(directorData).join(', ')
+            const insertValues = Object.keys(directorData)
+              .map((_, idx) => `$${idx + 1}`)
+              .join(', ')
+            
+            const insertResult = await client.queryObject<{ id: string }>(
+              `INSERT INTO outreach.directors (${insertFields}) VALUES (${insertValues}) RETURNING id`,
+              Object.values(directorData)
+            )
+
+            const newDirectorId = insertResult.rows[0].id
+
+            // Create appointment if company_number provided
+            if (director.company_number && newDirectorId) {
+              await client.queryObject(
+                `INSERT INTO outreach.director_appointments (director_id, company_number, role, is_active)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT (director_id, company_number, role) DO NOTHING`,
+                [newDirectorId, director.company_number, 'director', true]
+              ).catch(() => {
+                // Ignore errors
+              })
             }
-          )
-
-          if (!createResponse.ok) {
-            const errorText = await createResponse.text()
-            throw new Error(`Create failed: ${errorText}`)
+            results.created++
           }
-
-          const newDirector = await createResponse.json()
-          directorId = Array.isArray(newDirector) ? newDirector[0]?.id : newDirector?.id
-          results.created++
-
-          // Create appointment if company_number provided
-          if (director.company_number && directorId) {
-            await fetch(
-              `${restUrl}/director_appointments`,
-              {
-                method: 'POST',
-                headers: {
-                  ...headers,
-                  'Content-Profile': 'outreach',
-                },
-                body: JSON.stringify({
-                  director_id: directorId,
-                  company_number: director.company_number,
-                  role: 'director',
-                  is_active: true,
-                }),
-              }
-            ).catch(() => {
-              // Ignore duplicate appointment errors
-            })
-          }
+        } catch (error) {
+          results.errors.push({
+            index: i,
+            error: (error as Error).message,
+          })
         }
-      } catch (error) {
-        results.errors.push({
-          index: i,
-          error: (error as Error).message,
-        })
       }
+    } finally {
+      await client.end()
     }
 
     return new Response(
@@ -221,4 +157,3 @@ serve(async (req) => {
     )
   }
 })
-
