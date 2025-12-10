@@ -20,7 +20,7 @@ export const directors = {
     return data
   },
 
-  async getOrCreateDirector(_officerData: {
+  async getOrCreateDirector(officerData: {
     officer_id?: string
     name: string
     date_of_birth?: string
