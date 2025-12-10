@@ -160,7 +160,16 @@ export const directorImport = {
    */
   findColumn(headers: string[], possibleNames: string[]): string | undefined {
     for (const name of possibleNames) {
-      const index = headers.findIndex(h => h.includes(name) || name.includes(h))
+      // Try exact match first (case-insensitive)
+      const exactMatch = headers.find(h => h.toLowerCase().trim() === name.toLowerCase().trim())
+      if (exactMatch) return exactMatch
+      
+      // Try partial match
+      const index = headers.findIndex(h => {
+        const hLower = h.toLowerCase().trim()
+        const nLower = name.toLowerCase().trim()
+        return hLower.includes(nLower) || nLower.includes(hLower)
+      })
       if (index !== -1) {
         return headers[index]
       }
@@ -222,10 +231,10 @@ export const directorImport = {
           const directorRow = this.normalizeRow(row, mapping)
           
           // Skip if no director name found
-          if (!directorRow.dir_full_name) {
+          if (!directorRow.dir_full_name || directorRow.dir_full_name.trim() === '') {
             result.warnings.push({
               row: i + 1,
-              warning: `No director name found in row. Available columns: ${Object.keys(row).join(', ')}`,
+              warning: `No director name found in row. Detected columns: ${Object.keys(mapping).filter(k => mapping[k as keyof ColumnMapping]).join(', ')}. Row has: ${Object.keys(row).slice(0, 10).join(', ')}...`,
               data: directorRow,
             })
             continue
@@ -387,7 +396,18 @@ export const directorImport = {
         getValue(mapping.dir_middle_names),
         getValue(mapping.dir_surname),
       ].filter(Boolean)
-      fullName = parts.join(' ')
+      fullName = parts.join(' ').trim()
+    }
+    
+    // Debug logging
+    if (!fullName) {
+      console.log('Row data sample:', {
+        dir_title: getValue(mapping.dir_title),
+        dir_first_name: getValue(mapping.dir_first_name),
+        dir_surname: getValue(mapping.dir_surname),
+        mapping_keys: Object.keys(mapping),
+        row_keys_sample: Object.keys(row).slice(0, 10),
+      })
     }
 
     return {
