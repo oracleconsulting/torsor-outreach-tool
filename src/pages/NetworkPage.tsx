@@ -57,8 +57,10 @@ export function NetworkPage() {
           <DirectorCSVImport
             practiceId={practiceId}
             onImportComplete={(result) => {
+              console.log('NetworkPage: Import complete callback:', result)
               toast.success(`Import complete: ${result.updated} updated, ${result.created} created`)
-              setShowImport(false)
+              // Don't hide the import section so results remain visible
+              // setShowImport(false)
             }}
           />
         </div>

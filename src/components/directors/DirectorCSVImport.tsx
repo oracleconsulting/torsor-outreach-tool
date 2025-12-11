@@ -45,8 +45,14 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
       })
       console.log('Setting result in component:', importResult)
       // Create a new object reference to ensure React detects the change
-      setResult({ ...importResult })
+      const newResult = { ...importResult }
+      console.log('About to call setResult with:', newResult)
+      setResult(newResult)
       setProgress(null)
+      // Force a re-render check
+      setTimeout(() => {
+        console.log('After setResult, checking state...')
+      }, 100)
       
       if (importResult.total === 0) {
         toast.error('No rows found in CSV file. Please check the file format.')
@@ -87,10 +93,8 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
     URL.revokeObjectURL(url)
   }
 
-  // Debug: Log when component renders with result
-  if (result) {
-    console.log('Component rendering with result:', result)
-  }
+  // Debug: Log when component renders
+  console.log('DirectorCSVImport rendering, result:', result)
 
   return (
     <div className="space-y-6">
@@ -211,12 +215,15 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
         </div>
       )}
 
-      {/* Results */}
+      {/* Results - Debug: Always show if result exists */}
       {result ? (
-        <div className="space-y-4 mt-6 border-t-2 border-gray-300 pt-6 bg-white rounded-lg p-6 shadow-md">
+        <div className="space-y-4 mt-6 border-t-2 border-gray-300 pt-6 bg-white rounded-lg p-6 shadow-md" style={{ display: 'block' }}>
           <h4 className="text-xl font-bold mb-4 text-gray-900">✅ Import Results</h4>
           <div className="text-sm text-gray-600 mb-4">
             Import completed at {new Date().toLocaleTimeString()}
+          </div>
+          <div className="text-xs text-gray-500 mb-2">
+            Debug: result.total = {result.total}, result.updated = {result.updated}
           </div>
           <div className={`grid gap-4 ${result.confirmed > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
             <div className="p-4 bg-gray-50 rounded-lg">
