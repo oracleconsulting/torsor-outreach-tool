@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
-import { enrichment } from './enrichment'
 import type { Director } from '../types/directors'
+import { apollo } from './apollo'
 
 export interface DirectorCSVRow {
   // Company info (for matching)
@@ -100,7 +100,7 @@ export interface ConfirmationDetail {
   company_number?: string
   company_name?: string
   confirmed: boolean
-  confirmation_method: 'ai_confirmed' | 'csv_import' | 'failed'
+  confirmation_method: 'ai_confirmed' | 'apollo_confirmed' | 'csv_import' | 'failed'
   original_address?: string
   confirmed_address?: string
   confidence?: 'high' | 'medium' | 'low'
@@ -328,46 +328,25 @@ export const directorImport = {
                 await new Promise(resolve => setTimeout(resolve, 1000)) // 1 second delay every 10 rows
               }
               
-              // Build registered office address from CSV if available
-              const registeredOfficeParts = [
-                directorRow.registered_office_address_line_1,
-                directorRow.registered_office_address_line_2,
-                directorRow.registered_office_address_line_3,
-                directorRow.registered_office_address_line_4,
-                directorRow.registered_office_town,
-                directorRow.registered_office_postcode,
-                directorRow.registered_office_country,
-              ].filter(Boolean)
-              const registeredOfficeAddress = registeredOfficeParts.length > 0 
-                ? registeredOfficeParts.join(', ')
-                : undefined
-              
-              const findResult = await enrichment.findAddress({
+              const apolloResult = await apollo.enrichCompany({
                 company_name: directorRow.company_name,
                 company_number: directorRow.company_number,
                 director_name: directorRow.dir_full_name,
-                registered_address: registeredOfficeAddress ? {
-                  address_line_1: directorRow.registered_office_address_line_1,
-                  address_line_2: directorRow.registered_office_address_line_2,
-                  locality: directorRow.registered_office_town,
-                  postal_code: directorRow.registered_office_postcode,
-                  country: directorRow.registered_office_country || 'United Kingdom',
-                } : undefined,
-              })
+              }, false) // Don't fetch contacts during CSV import to save credits
               
-              if (findResult.success && findResult.bestAddress) {
+              if (apolloResult.success && apolloResult.found && apolloResult.address) {
                 foundAddress = {
-                  address_line_1: findResult.bestAddress.line1 || '',
-                  address_line_2: findResult.bestAddress.line2,
-                  locality: findResult.bestAddress.town || '',
-                  postal_code: findResult.bestAddress.postcode || '',
-                  country: 'United Kingdom', // EnrichedAddress doesn't have country, default to UK
+                  address_line_1: apolloResult.address.line1 || '',
+                  address_line_2: apolloResult.address.line2,
+                  locality: apolloResult.address.city || '',
+                  postal_code: apolloResult.address.postcode || '',
+                  country: apolloResult.address.country || 'United Kingdom',
                 }
                 confirmationDetail.confirmed = true
-                confirmationDetail.confirmation_method = 'ai_confirmed'
+                confirmationDetail.confirmation_method = 'apollo_confirmed'
                 confirmationDetail.confirmed_address = `${foundAddress.address_line_1}, ${foundAddress.address_line_2 || ''}, ${foundAddress.locality}, ${foundAddress.postal_code}`.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '')
                 // Convert numeric confidence to string
-                const confidenceNum = findResult.confidence || 0
+                const confidenceNum = apolloResult.confidence || 0
                 confirmationDetail.confidence = confidenceNum >= 80 ? 'high' : confidenceNum >= 50 ? 'medium' : 'low'
                 result.confirmed++
                 
@@ -379,10 +358,10 @@ export const directorImport = {
                 directorRow.dir_country = foundAddress.country
               } else {
                 confirmationDetail.confirmation_method = 'failed'
-                confirmationDetail.error = findResult.notes || 'AI could not find address'
+                confirmationDetail.error = apolloResult.notes || 'Apollo could not find address'
                 result.warnings.push({
                   row: i + 1,
-                  warning: `Address discovery failed: ${findResult.notes || 'No address found'}`,
+                  warning: `Address discovery failed: ${apolloResult.notes || 'No address found in Apollo database'}`,
                   data: directorRow,
                 })
               }
@@ -403,25 +382,37 @@ export const directorImport = {
             }
           }
           
-          // Confirm existing addresses with Perplexity if requested
+          // Confirm existing addresses with Apollo if requested
           if (options?.confirmAddresses && directorRow.dir_address_line_1) {
             try {
               // Add a small delay to avoid rate limiting
               if (i > 0 && i % 10 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 1000)) // 1 second delay every 10 rows
+                await new Promise(resolve => setTimeout(resolve, 600)) // 600ms delay for Apollo rate limits
               }
               
-              confirmedAddress = await this.confirmDirectorAddress(
-                directorRow.dir_full_name,
-                directorRow,
-                directorRow.company_name || directorRow.company_number
-              )
-              if (confirmedAddress) {
+              const confirmResult = await apollo.confirmAddress({
+                company_name: directorRow.company_name || '',
+                company_number: directorRow.company_number || '',
+                director_name: directorRow.dir_full_name,
+              }, {
+                line1: directorRow.dir_address_line_1,
+                postcode: directorRow.dir_postcode || '',
+              })
+              
+              if (confirmResult.success && confirmResult.confirmed && confirmResult.apolloAddress) {
+                confirmedAddress = {
+                  address_line_1: confirmResult.apolloAddress.line1,
+                  address_line_2: confirmResult.apolloAddress.line2,
+                  locality: confirmResult.apolloAddress.city,
+                  postal_code: confirmResult.apolloAddress.postcode,
+                  country: confirmResult.apolloAddress.country || 'United Kingdom',
+                  confidence: confirmResult.confidence >= 80 ? 'high' : confirmResult.confidence >= 50 ? 'medium' : 'low',
+                }
                 result.confirmed++
                 confirmationDetail.confirmed = true
-                confirmationDetail.confirmation_method = 'ai_confirmed'
+                confirmationDetail.confirmation_method = 'apollo_confirmed'
                 confirmationDetail.confirmed_address = `${confirmedAddress.address_line_1}, ${confirmedAddress.address_line_2 || ''}, ${confirmedAddress.locality || ''}, ${confirmedAddress.postal_code || ''}`.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '')
-                confirmationDetail.confidence = confirmedAddress.confidence || 'medium'
+                confirmationDetail.confidence = (confirmedAddress.confidence || 'medium') as 'high' | 'medium' | 'low'
                 
                 // Update with confirmed address
                 directorRow.dir_address_line_1 = confirmedAddress.address_line_1
@@ -431,7 +422,7 @@ export const directorImport = {
                 directorRow.dir_country = confirmedAddress.country || 'United Kingdom'
               } else {
                 confirmationDetail.confirmation_method = 'failed'
-                confirmationDetail.error = 'AI returned no confirmation'
+                confirmationDetail.error = confirmResult.notes || 'Apollo could not confirm address'
               }
             } catch (error) {
               confirmationDetail.confirmation_method = 'failed'
@@ -473,7 +464,7 @@ export const directorImport = {
             preferred_contact_method: directorRow.preferred_contact_method,
             date_of_birth: directorRow.dir_date_of_birth,
             nationality: directorRow.dir_nationality,
-            address_source: (foundAddress || confirmedAddress) ? 'csv_import_ai_confirmed' : 'csv_import',
+            address_source: (foundAddress || confirmedAddress) ? 'csv_import_apollo_confirmed' : 'csv_import',
             address_verified_at: new Date().toISOString(),
           }
 
@@ -837,7 +828,7 @@ export const directorImport = {
       }
       
       if (confirmedAddress) {
-        updateData.address_source = 'csv_import_ai_confirmed'
+        updateData.address_source = 'csv_import_apollo_confirmed'
       }
     }
 
@@ -867,7 +858,7 @@ export const directorImport = {
 
     const directorData: any = {
       name: row.dir_full_name,
-      address_source: confirmedAddress ? 'csv_import_ai_confirmed' : 'csv_import',
+      address_source: confirmedAddress ? 'csv_import_apollo_confirmed' : 'csv_import',
       address_verified_at: new Date().toISOString(),
     }
 
