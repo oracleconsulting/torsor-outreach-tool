@@ -363,6 +363,16 @@ export const directorImport = {
         }
       }
 
+      console.log('Final import result:', {
+        total: result.total,
+        matched: result.matched,
+        updated: result.updated,
+        created: result.created,
+        confirmed: result.confirmed,
+        errors: result.errors.length,
+        warnings: result.warnings.length,
+      })
+
       return result
     } catch (error) {
       throw new Error(`CSV import failed: ${(error as Error).message}`)

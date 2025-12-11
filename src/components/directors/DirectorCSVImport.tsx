@@ -43,6 +43,7 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
           setProgress({ current, total })
         },
       })
+      console.log('Setting result in component:', importResult)
       setResult(importResult)
       setProgress(null)
       
