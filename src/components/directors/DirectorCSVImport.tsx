@@ -266,12 +266,22 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
       {/* Results - Debug: Always show if result exists */}
       {result ? (
         <div className="space-y-4 mt-6 border-t-2 border-gray-300 pt-6 bg-white rounded-lg p-6 shadow-md" style={{ display: 'block' }}>
-          <h4 className="text-xl font-bold mb-4 text-gray-900">✅ Import Results</h4>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h4 className="text-xl font-bold text-gray-900">✅ Import Results</h4>
+              <div className="text-sm text-gray-600 mt-1">
+                Results are saved and will persist after page refresh
+              </div>
+            </div>
+            <button
+              onClick={clearResults}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 text-gray-700"
+            >
+              Clear Results
+            </button>
+          </div>
           <div className="text-sm text-gray-600 mb-4">
             Import completed at {new Date().toLocaleTimeString()}
-          </div>
-          <div className="text-xs text-gray-500 mb-2">
-            Debug: result.total = {result.total}, result.updated = {result.updated}
           </div>
           <div className={`grid gap-4 ${result.confirmed > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
             <div className="p-4 bg-gray-50 rounded-lg">
