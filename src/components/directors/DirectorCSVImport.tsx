@@ -44,12 +44,9 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
         },
       })
       console.log('Setting result in component:', importResult)
-      // Force a state update to ensure re-render
-      setResult(null)
-      setTimeout(() => {
-        setResult(importResult)
-        setProgress(null)
-      }, 0)
+      // Create a new object reference to ensure React detects the change
+      setResult({ ...importResult })
+      setProgress(null)
       
       if (importResult.total === 0) {
         toast.error('No rows found in CSV file. Please check the file format.')
@@ -298,7 +295,7 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
