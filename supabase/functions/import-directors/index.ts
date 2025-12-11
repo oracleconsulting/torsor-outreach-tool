@@ -60,18 +60,36 @@ serve(async (req) => {
           continue
         }
 
-        // Find existing director - try direct query with service role (should work in Edge Functions)
-        let directorId: string | null = null
-        
-        const { data: existing, error: findError } = await supabase
-          .from('outreach.directors')
-          .select('id')
-          .eq('name', director.name)
-          .limit(1)
-          .maybeSingle()
+        // Use REST API directly with schema in URL path
+        // This bypasses PostgREST's schema-qualified table name limitation
+        const restUrl = `${SUPABASE_URL}/rest/v1`
+        const headers = {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.pgjson.object+json',
+          'Prefer': 'return=representation',
+        }
 
-        if (existing && !findError) {
-          directorId = existing.id
+        // Find existing director using REST API with schema header
+        const findResponse = await fetch(
+          `${restUrl}/directors?name=eq.${encodeURIComponent(director.name)}&select=id&limit=1`,
+          {
+            headers: {
+              ...headers,
+              'Accept-Profile': 'outreach', // This tells PostgREST to use the outreach schema
+            },
+          }
+        )
+
+        let directorId: string | null = null
+        if (findResponse.ok) {
+          const existing = await findResponse.json()
+          if (Array.isArray(existing) && existing.length > 0) {
+            directorId = existing[0].id
+          } else if (existing && existing.id) {
+            directorId = existing.id
+          }
         }
 
         const directorData: any = {
@@ -98,45 +116,69 @@ serve(async (req) => {
         if (director.nationality) directorData.nationality = director.nationality
 
         if (directorId) {
-          // Update existing - try using outreach.directors syntax with service role
-          const { error: updateError } = await supabase
-            .from('outreach.directors')
-            .update(directorData)
-            .eq('id', directorId)
+          // Update existing
+          const updateResponse = await fetch(
+            `${restUrl}/directors?id=eq.${directorId}`,
+            {
+              method: 'PATCH',
+              headers: {
+                ...headers,
+                'Accept-Profile': 'outreach',
+                'Content-Profile': 'outreach',
+              },
+              body: JSON.stringify(directorData),
+            }
+          )
 
-          if (updateError) {
-            throw updateError
+          if (!updateResponse.ok) {
+            const errorText = await updateResponse.text()
+            throw new Error(`Update failed: ${errorText}`)
           }
           results.updated++
         } else {
           // Create new
-          const { data: newDirector, error: createError } = await supabase
-            .from('outreach.directors')
-            .insert(directorData)
-            .select()
-            .single()
+          const createResponse = await fetch(
+            `${restUrl}/directors`,
+            {
+              method: 'POST',
+              headers: {
+                ...headers,
+                'Accept-Profile': 'outreach',
+                'Content-Profile': 'outreach',
+              },
+              body: JSON.stringify(directorData),
+            }
+          )
 
-          let newDirectorId: string | null = null
-
-          if (createError) {
-            throw createError
+          if (!createResponse.ok) {
+            const errorText = await createResponse.text()
+            throw new Error(`Create failed: ${errorText}`)
           }
-          
-          newDirectorId = newDirector.id
+
+          const newDirector = await createResponse.json()
+          directorId = Array.isArray(newDirector) ? newDirector[0]?.id : newDirector?.id
 
           // Create appointment if company_number provided
-          if (director.company_number && newDirectorId) {
-            await supabase
-              .from('outreach.director_appointments')
-              .insert({
-                director_id: newDirectorId,
-                company_number: director.company_number,
-                role: 'director',
-                is_active: true,
-              })
-              .catch(() => {
-                // Ignore duplicate appointment errors
-              })
+          if (director.company_number && directorId) {
+            await fetch(
+              `${restUrl}/director_appointments`,
+              {
+                method: 'POST',
+                headers: {
+                  ...headers,
+                  'Accept-Profile': 'outreach',
+                  'Content-Profile': 'outreach',
+                },
+                body: JSON.stringify({
+                  director_id: directorId,
+                  company_number: director.company_number,
+                  role: 'director',
+                  is_active: true,
+                }),
+              }
+            ).catch(() => {
+              // Ignore duplicate appointment errors
+            })
           }
           results.created++
         }
