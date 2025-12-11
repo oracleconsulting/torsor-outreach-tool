@@ -66,19 +66,31 @@ serve(async (req) => {
     apolloBody.reveal_phone_number = request.revealPhoneNumber !== false // Default true
 
     // Use Apollo People Search API (available on free plan) instead of Match API
-    // Build search query - Apollo search uses different parameter structure
+    // Build search query - Apollo search endpoint uses q (query string) or specific filters
     const searchBody: any = {
       per_page: 1,
     }
     
-    // Build person name filter
+    // Build search query string for better matching
+    // Apollo search works best with a combination of name and company
+    let searchQuery = ''
     if (apolloBody.name) {
-      searchBody.person_names = [apolloBody.name]
+      searchQuery = apolloBody.name
     } else if (apolloBody.first_name && apolloBody.last_name) {
-      searchBody.person_names = [`${apolloBody.first_name} ${apolloBody.last_name}`]
+      searchQuery = `${apolloBody.first_name} ${apolloBody.last_name}`
     }
     
-    // Build organization filter
+    if (apolloBody.organization_name && searchQuery) {
+      searchQuery += ` ${apolloBody.organization_name}`
+    } else if (apolloBody.organization_name) {
+      searchQuery = apolloBody.organization_name
+    }
+    
+    if (searchQuery) {
+      searchBody.q = searchQuery
+    }
+    
+    // Also add specific filters if available (these help narrow down results)
     if (apolloBody.organization_name) {
       searchBody.organization_names = [apolloBody.organization_name]
     }
@@ -87,19 +99,8 @@ serve(async (req) => {
       searchBody.organization_domains = [apolloBody.domain]
     }
     
-    // Build email filter
     if (apolloBody.email) {
       searchBody.person_emails = [apolloBody.email]
-    }
-    
-    // Build LinkedIn filter
-    if (apolloBody.linkedin_url) {
-      searchBody.person_linkedin_urls = [apolloBody.linkedin_url]
-    }
-    
-    // If we have a name and organization, use both for better matching
-    if ((apolloBody.name || (apolloBody.first_name && apolloBody.last_name)) && apolloBody.organization_name) {
-      // This combination should give us the best match
     }
 
     const response = await fetch("https://api.apollo.io/api/v1/mixed_people/search", {
