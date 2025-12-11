@@ -66,17 +66,19 @@ serve(async (req) => {
     apolloBody.reveal_phone_number = request.revealPhoneNumber !== false // Default true
 
     // Use Apollo People Search API (available on free plan) instead of Match API
-    // Build search query
+    // Build search query - Apollo search uses different parameter structure
     const searchBody: any = {
       per_page: 1,
     }
     
+    // Build person name filter
     if (apolloBody.name) {
       searchBody.person_names = [apolloBody.name]
     } else if (apolloBody.first_name && apolloBody.last_name) {
       searchBody.person_names = [`${apolloBody.first_name} ${apolloBody.last_name}`]
     }
     
+    // Build organization filter
     if (apolloBody.organization_name) {
       searchBody.organization_names = [apolloBody.organization_name]
     }
@@ -85,12 +87,19 @@ serve(async (req) => {
       searchBody.organization_domains = [apolloBody.domain]
     }
     
+    // Build email filter
     if (apolloBody.email) {
       searchBody.person_emails = [apolloBody.email]
     }
     
+    // Build LinkedIn filter
     if (apolloBody.linkedin_url) {
       searchBody.person_linkedin_urls = [apolloBody.linkedin_url]
+    }
+    
+    // If we have a name and organization, use both for better matching
+    if ((apolloBody.name || (apolloBody.first_name && apolloBody.last_name)) && apolloBody.organization_name) {
+      // This combination should give us the best match
     }
 
     const response = await fetch("https://api.apollo.io/api/v1/mixed_people/search", {
@@ -162,7 +171,7 @@ serve(async (req) => {
       emails.push({
         email: person.email,
         type: 'work',
-        verified: person.email_status === 'verified' || person.email_status === 'verified'
+        verified: person.email_status === 'verified'
       })
     }
     if (person.personal_emails && Array.isArray(person.personal_emails) && person.personal_emails.length > 0) {
