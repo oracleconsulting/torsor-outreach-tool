@@ -67,7 +67,7 @@ serve(async (req) => {
           'apikey': SUPABASE_SERVICE_KEY,
           'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
           'Content-Type': 'application/json',
-          'Accept': 'application/vnd.pgjson.object+json',
+          'Accept': 'application/json',
           'Prefer': 'return=representation',
         }
 
