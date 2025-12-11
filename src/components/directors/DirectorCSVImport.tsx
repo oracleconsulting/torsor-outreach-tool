@@ -212,9 +212,12 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
       )}
 
       {/* Results */}
-      {result && (
+      {result ? (
         <div className="space-y-4 mt-6 border-t-2 border-gray-300 pt-6 bg-white rounded-lg p-6 shadow-md">
-          <h4 className="text-xl font-bold mb-4 text-gray-900">Import Results</h4>
+          <h4 className="text-xl font-bold mb-4 text-gray-900">✅ Import Results</h4>
+          <div className="text-sm text-gray-600 mb-4">
+            Import completed at {new Date().toLocaleTimeString()}
+          </div>
           <div className={`grid gap-4 ${result.confirmed > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
             <div className="p-4 bg-gray-50 rounded-lg">
               <div className="text-2xl font-bold">{result.total}</div>
