@@ -179,17 +179,37 @@ export const apollo = {
 
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`
+        let errorData: any = {}
         try {
-          const error = await response.json()
-          errorMessage = error.error || error.message || errorMessage
+          errorData = await response.json()
+          errorMessage = errorData.error || errorData.message || errorMessage
         } catch {
           const errorText = await response.text()
           errorMessage = errorText || errorMessage
         }
+        
+        // If the response includes requiresUpgrade, preserve it in the error
+        if (errorData.requiresUpgrade) {
+          const upgradeError: any = new Error(errorMessage)
+          upgradeError.requiresUpgrade = true
+          upgradeError.notes = errorData.notes
+          throw upgradeError
+        }
+        
         throw new Error(errorMessage)
       }
 
-      return response.json()
+      const result = await response.json()
+      
+      // Check if result indicates upgrade is required
+      if (result.requiresUpgrade) {
+        const upgradeError: any = new Error(result.notes || 'People enrichment requires a paid Apollo.io plan')
+        upgradeError.requiresUpgrade = true
+        upgradeError.notes = result.notes
+        throw upgradeError
+      }
+      
+      return result
     } catch (error: any) {
       if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
         throw new Error(`Network error: Unable to reach Apollo people enrichment service. Please check your connection and ensure the Edge Function is deployed.`)

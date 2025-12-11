@@ -114,6 +114,28 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text()
+      let errorData: any = {}
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        // Not JSON, use raw text
+      }
+      
+      // Check if this is a plan limitation error
+      if (response.status === 403 && errorData.error_code === 'API_INACCESSIBLE') {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            found: false,
+            source: 'apollo',
+            confidence: 0,
+            requiresUpgrade: true,
+            notes: 'People enrichment requires a paid Apollo.io plan. The free plan does not include access to people search/enrichment endpoints. Please upgrade at https://app.apollo.io/ or disable contact enrichment in import options.'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      
       throw new Error(`Apollo API error: ${response.status} ${response.statusText} - ${errorText}`)
     }
 

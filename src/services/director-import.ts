@@ -508,11 +508,39 @@ export const directorImport = {
             } catch (error) {
               // Log but don't fail the import if contact enrichment fails
               console.warn(`Failed to enrich contacts for ${directorRow.dir_full_name}:`, error)
-              result.warnings.push({
-                row: i + 1,
-                warning: `Contact enrichment failed: ${(error as Error).message}`,
-                data: directorRow,
-              })
+              
+              // Check if this is a plan upgrade requirement
+              const errorMessage = (error as Error).message
+              let warningMessage = `Contact enrichment failed: ${errorMessage}`
+              
+              // Try to parse the error to see if it's a plan limitation
+              try {
+                // If the error was from Apollo service, it might have requiresUpgrade flag
+                if (errorMessage.includes('requires a paid Apollo.io plan') || errorMessage.includes('free plan')) {
+                  warningMessage = `Contact enrichment requires a paid Apollo.io plan. The free plan does not include people search/enrichment. Please upgrade at https://app.apollo.io/ or disable contact enrichment in import options.`
+                  // Only add this warning once
+                  if (!result.warnings.some(w => w.warning.includes('requires a paid Apollo.io plan'))) {
+                    result.warnings.push({
+                      row: i + 1,
+                      warning: warningMessage,
+                      data: directorRow,
+                    })
+                  }
+                } else {
+                  result.warnings.push({
+                    row: i + 1,
+                    warning: warningMessage,
+                    data: directorRow,
+                  })
+                }
+              } catch {
+                // If parsing fails, just add the error message
+                result.warnings.push({
+                  row: i + 1,
+                  warning: warningMessage,
+                  data: directorRow,
+                })
+              }
             }
           }
           

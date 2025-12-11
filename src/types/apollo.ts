@@ -110,5 +110,6 @@ export interface ApolloPeopleEnrichmentResult {
   person?: ApolloPerson
   confidence: number
   notes?: string
+  requiresUpgrade?: boolean
 }
 
