@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { enrichment } from './enrichment'
 import type { Director } from '../types/directors'
 
 export interface DirectorCSVRow {
@@ -201,6 +202,7 @@ export const directorImport = {
     options?: {
       confirmAddresses?: boolean // Use Perplexity to confirm addresses
       skipConfirmation?: boolean // Skip if address already confirmed
+      findMissingAddresses?: boolean // Use AI to find addresses when they're missing from CSV
       onProgress?: (current: number, total: number) => void // Progress callback
     }
   ): Promise<ImportResult> {
@@ -267,8 +269,16 @@ export const directorImport = {
             continue
           }
           
-          // Confirm address with Perplexity if requested
+          // Find or confirm address with Perplexity if requested
           let confirmedAddress = null
+          let foundAddress: {
+            address_line_1: string
+            address_line_2?: string
+            locality: string
+            postal_code: string
+            country: string
+          } | null = null
+          
           const originalAddress = directorRow.dir_address_line_1 
             ? `${directorRow.dir_address_line_1}, ${directorRow.dir_address_line_2 || ''}, ${directorRow.dir_town || ''}, ${directorRow.dir_postcode || ''}`.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '')
             : undefined
@@ -283,6 +293,64 @@ export const directorImport = {
             original_address: originalAddress,
           }
           
+          // Find missing addresses using AI
+          if (options?.findMissingAddresses && !directorRow.dir_address_line_1 && directorRow.company_number && directorRow.company_name) {
+            try {
+              // Add a small delay to avoid rate limiting
+              if (i > 0 && i % 10 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 1000)) // 1 second delay every 10 rows
+              }
+              
+              const findResult = await enrichment.findAddress({
+                company_name: directorRow.company_name,
+                company_number: directorRow.company_number,
+                director_name: directorRow.dir_full_name,
+                registered_address: undefined, // Could add registered office from CSV if available
+              })
+              
+              if (findResult.success && findResult.bestAddress) {
+                foundAddress = {
+                  address_line_1: findResult.bestAddress.line1 || '',
+                  address_line_2: findResult.bestAddress.line2,
+                  locality: findResult.bestAddress.town || '',
+                  postal_code: findResult.bestAddress.postcode || '',
+                  country: 'United Kingdom', // EnrichedAddress doesn't have country, default to UK
+                }
+                confirmationDetail.confirmed = true
+                confirmationDetail.confirmation_method = 'ai_confirmed'
+                confirmationDetail.confirmed_address = `${foundAddress.address_line_1}, ${foundAddress.address_line_2 || ''}, ${foundAddress.locality}, ${foundAddress.postal_code}`.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '')
+                // Convert numeric confidence to string
+                const confidenceNum = findResult.confidence || 0
+                confirmationDetail.confidence = confidenceNum >= 80 ? 'high' : confidenceNum >= 50 ? 'medium' : 'low'
+                result.confirmed++
+                
+                // Update director row with found address
+                directorRow.dir_address_line_1 = foundAddress.address_line_1
+                directorRow.dir_address_line_2 = foundAddress.address_line_2
+                directorRow.dir_town = foundAddress.locality
+                directorRow.dir_postcode = foundAddress.postal_code
+                directorRow.dir_country = foundAddress.country
+              } else {
+                confirmationDetail.confirmation_method = 'failed'
+                confirmationDetail.error = findResult.notes || 'AI could not find address'
+                result.warnings.push({
+                  row: i + 1,
+                  warning: `Address discovery failed: ${findResult.notes || 'No address found'}`,
+                  data: directorRow,
+                })
+              }
+            } catch (error) {
+              confirmationDetail.confirmation_method = 'failed'
+              confirmationDetail.error = (error as Error).message
+              result.warnings.push({
+                row: i + 1,
+                warning: `Address discovery failed: ${(error as Error).message}`,
+                data: directorRow,
+              })
+            }
+          }
+          
+          // Confirm existing addresses with Perplexity if requested
           if (options?.confirmAddresses && directorRow.dir_address_line_1) {
             try {
               // Add a small delay to avoid rate limiting
@@ -332,19 +400,19 @@ export const directorImport = {
             name: directorRow.dir_full_name!,
             company_number: directorRow.company_number,
             company_name: directorRow.company_name,
-            trading_address: directorRow.dir_address_line_1 ? {
-              address_line_1: confirmedAddress?.address_line_1 || directorRow.dir_address_line_1,
-              address_line_2: confirmedAddress?.address_line_2 || directorRow.dir_address_line_2 || directorRow.dir_address_line_3,
-              locality: confirmedAddress?.locality || directorRow.dir_town,
-              postal_code: confirmedAddress?.postal_code || directorRow.dir_postcode,
-              country: confirmedAddress?.country || directorRow.dir_country || 'United Kingdom',
+            trading_address: (foundAddress || confirmedAddress || directorRow.dir_address_line_1) ? {
+              address_line_1: foundAddress?.address_line_1 || confirmedAddress?.address_line_1 || directorRow.dir_address_line_1,
+              address_line_2: foundAddress?.address_line_2 || confirmedAddress?.address_line_2 || directorRow.dir_address_line_2 || directorRow.dir_address_line_3,
+              locality: foundAddress?.locality || confirmedAddress?.locality || directorRow.dir_town,
+              postal_code: foundAddress?.postal_code || confirmedAddress?.postal_code || directorRow.dir_postcode,
+              country: foundAddress?.country || confirmedAddress?.country || directorRow.dir_country || 'United Kingdom',
             } : undefined,
-            contact_address: directorRow.dir_address_line_1 ? {
-              address_line_1: confirmedAddress?.address_line_1 || directorRow.dir_address_line_1,
-              address_line_2: confirmedAddress?.address_line_2 || directorRow.dir_address_line_2 || directorRow.dir_address_line_3,
-              locality: confirmedAddress?.locality || directorRow.dir_town,
-              postal_code: confirmedAddress?.postal_code || directorRow.dir_postcode,
-              country: confirmedAddress?.country || directorRow.dir_country || 'United Kingdom',
+            contact_address: (foundAddress || confirmedAddress || directorRow.dir_address_line_1) ? {
+              address_line_1: foundAddress?.address_line_1 || confirmedAddress?.address_line_1 || directorRow.dir_address_line_1,
+              address_line_2: foundAddress?.address_line_2 || confirmedAddress?.address_line_2 || directorRow.dir_address_line_2 || directorRow.dir_address_line_3,
+              locality: foundAddress?.locality || confirmedAddress?.locality || directorRow.dir_town,
+              postal_code: foundAddress?.postal_code || confirmedAddress?.postal_code || directorRow.dir_postcode,
+              country: foundAddress?.country || confirmedAddress?.country || directorRow.dir_country || 'United Kingdom',
             } : undefined,
             email: directorRow.email,
             phone: directorRow.phone,
@@ -352,7 +420,7 @@ export const directorImport = {
             preferred_contact_method: directorRow.preferred_contact_method,
             date_of_birth: directorRow.dir_date_of_birth,
             nationality: directorRow.dir_nationality,
-            address_source: confirmedAddress ? 'csv_import_ai_confirmed' : 'csv_import',
+            address_source: (foundAddress || confirmedAddress) ? 'csv_import_ai_confirmed' : 'csv_import',
             address_verified_at: new Date().toISOString(),
           }
 

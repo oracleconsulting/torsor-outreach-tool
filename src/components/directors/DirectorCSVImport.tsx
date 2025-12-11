@@ -74,6 +74,7 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
   } // Force rebuild
 
   const [confirmAddresses, setConfirmAddresses] = useState(false) // Default to false for faster imports
+  const [findMissingAddresses, setFindMissingAddresses] = useState(false) // Find addresses when missing from CSV
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null)
 
   const handleImport = async () => {
@@ -87,6 +88,7 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
     try {
       const importResult = await directorImport.importFromCSV(file, practiceId, {
         confirmAddresses,
+        findMissingAddresses,
         onProgress: (current, total) => {
           setProgress({ current, total })
         },
@@ -210,15 +212,32 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
           <div className="flex items-center gap-2 p-4 bg-gray-50 rounded-lg border">
             <input
               type="checkbox"
+              id="find-missing-addresses"
+              checked={findMissingAddresses}
+              onChange={(e) => setFindMissingAddresses(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <label htmlFor="find-missing-addresses" className="text-sm cursor-pointer">
+              <span className="font-medium">Find missing addresses with AI</span>
+              <span className="text-gray-600 block text-xs mt-1">
+                Use Perplexity AI to discover trading/contact addresses when they're not in your CSV. Requires company name and company number.
+                <strong className="text-orange-600"> Note: This will significantly slow down the import (2-3 seconds per row with missing addresses).</strong>
+              </span>
+            </label>
+          </div>
+          
+          <div className="flex items-center gap-2 p-4 bg-gray-50 rounded-lg border">
+            <input
+              type="checkbox"
               id="confirm-addresses"
               checked={confirmAddresses}
               onChange={(e) => setConfirmAddresses(e.target.checked)}
               className="h-4 w-4"
             />
             <label htmlFor="confirm-addresses" className="text-sm cursor-pointer">
-              <span className="font-medium">Confirm addresses with AI</span>
+              <span className="font-medium">Confirm existing addresses with AI</span>
               <span className="text-gray-600 block text-xs mt-1">
-                Use Perplexity AI to verify and correct director contact addresses (not registered office addresses).
+                Use Perplexity AI to verify and correct director contact addresses that are already in your CSV (not registered office addresses).
                 <strong className="text-orange-600"> Note: This will significantly slow down the import (1-2 seconds per row).</strong>
               </span>
             </label>
@@ -236,7 +255,7 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
                 {progress ? (
                   <>
                     Processing {progress.current} of {progress.total} rows
-                    {confirmAddresses ? ' (confirming addresses...)' : ''}
+                    {findMissingAddresses ? ' (finding addresses...)' : confirmAddresses ? ' (confirming addresses...)' : ''}
                   </>
                 ) : (
                   <>
