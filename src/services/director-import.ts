@@ -83,6 +83,15 @@ export interface ColumnMapping {
   dir_nationality?: string
   dir_position?: string
   dir_occupation?: string
+  
+  // Registered office address (for context when finding addresses)
+  registered_office_address_1?: string
+  registered_office_address_2?: string
+  registered_office_address_3?: string
+  registered_office_address_4?: string
+  registered_office_town?: string
+  registered_office_postcode?: string
+  registered_office_country?: string
 }
 
 export interface ConfirmationDetail {
@@ -126,6 +135,15 @@ export const directorImport = {
       'company no', 'company_no', 'reg number', 'reg_number'
     ])
     
+    // Registered office address columns (for context when finding addresses)
+    mapping.registered_office_address_1 = this.findColumn(lowerHeaders, ['registered office address 1', 'registered_office_address_1', 'reg office address 1'])
+    mapping.registered_office_address_2 = this.findColumn(lowerHeaders, ['registered office address 2', 'registered_office_address_2', 'reg office address 2'])
+    mapping.registered_office_address_3 = this.findColumn(lowerHeaders, ['registered office address 3', 'registered_office_address_3', 'reg office address 3'])
+    mapping.registered_office_address_4 = this.findColumn(lowerHeaders, ['registered office address 4', 'registered_office_address_4', 'reg office address 4'])
+    mapping.registered_office_town = this.findColumn(lowerHeaders, ['registered office town', 'registered_office_town', 'reg office town'])
+    mapping.registered_office_postcode = this.findColumn(lowerHeaders, ['registered office postcode', 'registered_office_postcode', 'reg office postcode'])
+    mapping.registered_office_country = this.findColumn(lowerHeaders, ['registered office country', 'registered_office_country', 'reg office country'])
+    
     // Director name columns
     mapping.dir_title = this.findColumn(lowerHeaders, ['dir title', 'dir_title', 'title', 'director title'])
     mapping.dir_first_name = this.findColumn(lowerHeaders, ['dir first name', 'dir_first_name', 'first name', 'first_name', 'forename'])
@@ -167,6 +185,15 @@ export const directorImport = {
     mapping.dir_occupation = this.findColumn(lowerHeaders, [
       'dir occupation', 'dir_occupation', 'occupation', 'director occupation'
     ])
+    
+    // Registered office address columns (for context when finding addresses)
+    mapping.registered_office_address_1 = this.findColumn(lowerHeaders, ['registered office address 1', 'registered_office_address_1', 'reg office address 1'])
+    mapping.registered_office_address_2 = this.findColumn(lowerHeaders, ['registered office address 2', 'registered_office_address_2', 'reg office address 2'])
+    mapping.registered_office_address_3 = this.findColumn(lowerHeaders, ['registered office address 3', 'registered_office_address_3', 'reg office address 3'])
+    mapping.registered_office_address_4 = this.findColumn(lowerHeaders, ['registered office address 4', 'registered_office_address_4', 'reg office address 4'])
+    mapping.registered_office_town = this.findColumn(lowerHeaders, ['registered office town', 'registered_office_town', 'reg office town'])
+    mapping.registered_office_postcode = this.findColumn(lowerHeaders, ['registered office postcode', 'registered_office_postcode', 'reg office postcode'])
+    mapping.registered_office_country = this.findColumn(lowerHeaders, ['registered office country', 'registered_office_country', 'reg office country'])
     
     return mapping
   },
@@ -301,11 +328,31 @@ export const directorImport = {
                 await new Promise(resolve => setTimeout(resolve, 1000)) // 1 second delay every 10 rows
               }
               
+              // Build registered office address from CSV if available
+              const registeredOfficeParts = [
+                directorRow.registered_office_address_line_1,
+                directorRow.registered_office_address_line_2,
+                directorRow.registered_office_address_line_3,
+                directorRow.registered_office_address_line_4,
+                directorRow.registered_office_town,
+                directorRow.registered_office_postcode,
+                directorRow.registered_office_country,
+              ].filter(Boolean)
+              const registeredOfficeAddress = registeredOfficeParts.length > 0 
+                ? registeredOfficeParts.join(', ')
+                : undefined
+              
               const findResult = await enrichment.findAddress({
                 company_name: directorRow.company_name,
                 company_number: directorRow.company_number,
                 director_name: directorRow.dir_full_name,
-                registered_address: undefined, // Could add registered office from CSV if available
+                registered_address: registeredOfficeAddress ? {
+                  address_line_1: directorRow.registered_office_address_line_1,
+                  address_line_2: directorRow.registered_office_address_line_2,
+                  locality: directorRow.registered_office_town,
+                  postal_code: directorRow.registered_office_postcode,
+                  country: directorRow.registered_office_country || 'United Kingdom',
+                } : undefined,
               })
               
               if (findResult.success && findResult.bestAddress) {
@@ -341,10 +388,16 @@ export const directorImport = {
               }
             } catch (error) {
               confirmationDetail.confirmation_method = 'failed'
-              confirmationDetail.error = (error as Error).message
+              const errorMessage = (error as Error).message
+              confirmationDetail.error = errorMessage
+              // Provide more helpful error message
+              let warningMessage = `Address discovery failed: ${errorMessage}`
+              if (errorMessage.includes('Network error') || errorMessage.includes('Failed to fetch')) {
+                warningMessage = `Address discovery failed: Unable to reach AI service. Please check your connection and ensure the address-enrichment Edge Function is deployed.`
+              }
               result.warnings.push({
                 row: i + 1,
-                warning: `Address discovery failed: ${(error as Error).message}`,
+                warning: warningMessage,
                 data: directorRow,
               })
             }
@@ -615,6 +668,15 @@ export const directorImport = {
       dir_town: getValue(mapping.dir_town),
       dir_postcode: getValue(mapping.dir_postcode),
       dir_country: getValue(mapping.dir_country) || 'United Kingdom',
+      
+      // Registered office address
+      registered_office_address_line_1: getValue(mapping.registered_office_address_1),
+      registered_office_address_line_2: getValue(mapping.registered_office_address_2),
+      registered_office_address_line_3: getValue(mapping.registered_office_address_3),
+      registered_office_address_line_4: getValue(mapping.registered_office_address_4),
+      registered_office_town: getValue(mapping.registered_office_town),
+      registered_office_postcode: getValue(mapping.registered_office_postcode),
+      registered_office_country: getValue(mapping.registered_office_country),
       
       dir_date_of_birth: getValue(mapping.dir_date_of_birth),
       dir_nationality: getValue(mapping.dir_nationality),

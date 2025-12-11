@@ -12,21 +12,36 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 async function callEnrichmentFunction(request: EnrichmentRequest): Promise<EnrichmentResult> {
   const { data: { session } } = await supabase.auth.getSession()
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/address-enrichment`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session?.access_token || ''}`,
-    },
-    body: JSON.stringify(request),
-  })
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/address-enrichment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token || ''}`,
+      },
+      body: JSON.stringify(request),
+    })
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || `HTTP ${response.status}`)
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}`
+      try {
+        const error = await response.json()
+        errorMessage = error.error || error.message || errorMessage
+      } catch {
+        const errorText = await response.text()
+        errorMessage = errorText || errorMessage
+      }
+      throw new Error(errorMessage)
+    }
+
+    return response.json()
+  } catch (error: any) {
+    // Handle network errors, CORS, etc.
+    if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+      throw new Error(`Network error: Unable to reach address enrichment service. Please check your connection and ensure the Edge Function is deployed.`)
+    }
+    throw error
   }
-
-  return response.json()
 }
 
 export const enrichment = {
