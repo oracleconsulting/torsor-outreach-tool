@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Upload, FileText, CheckCircle, XCircle, Loader2, Download } from 'lucide-react'
-import { directorImport, type ImportResult } from '../../services/director-import'
+import { directorImport, type ImportResult, type ConfirmationDetail } from '../../services/director-import'
 import toast from 'react-hot-toast'
 
 interface DirectorCSVImportProps {
@@ -302,6 +302,71 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
               <span className="text-sm font-medium text-green-900">
                 All rows imported successfully!
               </span>
+            </div>
+          )}
+
+          {/* Address Confirmation Details */}
+          {result.confirmations && result.confirmations.length > 0 && (
+            <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+              <div className="flex items-center gap-2 mb-4">
+                <CheckCircle className="h-5 w-5 text-blue-600" />
+                <h4 className="font-semibold text-blue-900">
+                  Address Confirmation Details ({result.confirmations.filter((c: ConfirmationDetail) => c.confirmed).length} confirmed, {result.confirmations.filter((c: ConfirmationDetail) => !c.confirmed && c.confirmation_method === 'failed').length} failed, {result.confirmations.filter((c: ConfirmationDetail) => c.confirmation_method === 'csv_import').length} from CSV)
+                </h4>
+              </div>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {result.confirmations.map((conf: ConfirmationDetail, idx: number) => (
+                  <div key={idx} className={`text-sm bg-white p-3 rounded border ${conf.confirmed ? 'border-green-300' : conf.confirmation_method === 'failed' ? 'border-red-300' : 'border-gray-300'}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">
+                          Row {conf.row}: {conf.director_name}
+                          {conf.company_name && (
+                            <span className="text-gray-600 font-normal"> ({conf.company_name})</span>
+                          )}
+                        </div>
+                        <div className="mt-1 space-y-1">
+                          {conf.original_address && (
+                            <div className="text-xs">
+                              <span className="font-medium text-gray-700">Original:</span>{' '}
+                              <span className="text-gray-600">{conf.original_address}</span>
+                            </div>
+                          )}
+                          {conf.confirmed && conf.confirmed_address && (
+                            <div className="text-xs">
+                              <span className="font-medium text-green-700">✅ Confirmed:</span>{' '}
+                              <span className="text-green-600">{conf.confirmed_address}</span>
+                              {conf.confidence && (
+                                <span className={`ml-2 px-1.5 py-0.5 rounded text-xs ${
+                                  conf.confidence === 'high' ? 'bg-green-100 text-green-800' :
+                                  conf.confidence === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-orange-100 text-orange-800'
+                                }`}>
+                                  {conf.confidence} confidence
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {conf.error && (
+                            <div className="text-xs text-red-600">
+                              <span className="font-medium">Error:</span> {conf.error}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          conf.confirmed ? 'bg-green-100 text-green-800' :
+                          conf.confirmation_method === 'failed' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {conf.confirmed ? 'AI Confirmed' : conf.confirmation_method === 'failed' ? 'Failed' : 'CSV Only'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

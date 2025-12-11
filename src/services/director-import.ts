@@ -84,6 +84,19 @@ export interface ColumnMapping {
   dir_occupation?: string
 }
 
+export interface ConfirmationDetail {
+  row: number
+  director_name: string
+  company_number?: string
+  company_name?: string
+  confirmed: boolean
+  confirmation_method: 'ai_confirmed' | 'csv_import' | 'failed'
+  original_address?: string
+  confirmed_address?: string
+  confidence?: 'high' | 'medium' | 'low'
+  error?: string
+}
+
 export interface ImportResult {
   total: number
   matched: number
@@ -92,6 +105,7 @@ export interface ImportResult {
   confirmed: number // Addresses confirmed via AI
   errors: Array<{ row: number; error: string; data: Partial<DirectorCSVRow> }>
   warnings: Array<{ row: number; warning: string; data: Partial<DirectorCSVRow> }>
+  confirmations: ConfirmationDetail[]
 }
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -198,6 +212,7 @@ export const directorImport = {
       confirmed: 0,
       errors: [],
       warnings: [],
+      confirmations: [],
     }
 
     try {
@@ -254,6 +269,20 @@ export const directorImport = {
           
           // Confirm address with Perplexity if requested
           let confirmedAddress = null
+          const originalAddress = directorRow.dir_address_line_1 
+            ? `${directorRow.dir_address_line_1}, ${directorRow.dir_address_line_2 || ''}, ${directorRow.dir_town || ''}, ${directorRow.dir_postcode || ''}`.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '')
+            : undefined
+          
+          const confirmationDetail: ConfirmationDetail = {
+            row: i + 1,
+            director_name: directorRow.dir_full_name || 'Unknown',
+            company_number: directorRow.company_number,
+            company_name: directorRow.company_name,
+            confirmed: false,
+            confirmation_method: 'csv_import',
+            original_address: originalAddress,
+          }
+          
           if (options?.confirmAddresses && directorRow.dir_address_line_1) {
             try {
               // Add a small delay to avoid rate limiting
@@ -268,14 +297,24 @@ export const directorImport = {
               )
               if (confirmedAddress) {
                 result.confirmed++
+                confirmationDetail.confirmed = true
+                confirmationDetail.confirmation_method = 'ai_confirmed'
+                confirmationDetail.confirmed_address = `${confirmedAddress.address_line_1}, ${confirmedAddress.address_line_2 || ''}, ${confirmedAddress.locality || ''}, ${confirmedAddress.postal_code || ''}`.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '')
+                confirmationDetail.confidence = confirmedAddress.confidence || 'medium'
+                
                 // Update with confirmed address
                 directorRow.dir_address_line_1 = confirmedAddress.address_line_1
                 directorRow.dir_address_line_2 = confirmedAddress.address_line_2
                 directorRow.dir_town = confirmedAddress.locality
                 directorRow.dir_postcode = confirmedAddress.postal_code
                 directorRow.dir_country = confirmedAddress.country || 'United Kingdom'
+              } else {
+                confirmationDetail.confirmation_method = 'failed'
+                confirmationDetail.error = 'AI returned no confirmation'
               }
             } catch (error) {
+              confirmationDetail.confirmation_method = 'failed'
+              confirmationDetail.error = (error as Error).message
               result.warnings.push({
                 row: i + 1,
                 warning: `Address confirmation failed: ${(error as Error).message}`,
@@ -284,6 +323,9 @@ export const directorImport = {
               // Continue with unconfirmed address
             }
           }
+          
+          // Always add confirmation detail to track what happened
+          result.confirmations.push(confirmationDetail)
           
           // Use Edge Function to handle database operations (bypasses schema exposure issue)
           const directorPayload = {
