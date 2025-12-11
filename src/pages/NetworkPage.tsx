@@ -2,15 +2,17 @@ import { useState, useEffect } from 'react'
 import { useNetworkOpportunities } from '../hooks/useDirectorNetwork'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
-import { Building2, Users, TrendingUp, Loader2, Upload } from 'lucide-react'
+import { Building2, Users, TrendingUp, Loader2, Upload, FileText } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { DirectorCSVImport } from '../components/directors/DirectorCSVImport'
+import { ImportHistory } from '../components/directors/ImportHistory'
 import toast from 'react-hot-toast'
 
 export function NetworkPage() {
   const { user } = useAuth()
   const [practiceId, setPracticeId] = useState<string | undefined>()
   const [showImport, setShowImport] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
     const getPracticeId = async () => {
@@ -42,15 +44,31 @@ export function NetworkPage() {
           </p>
         </div>
         {practiceId && (
-          <button
-            onClick={() => setShowImport(!showImport)}
-            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 flex items-center justify-center gap-2 whitespace-nowrap"
-          >
-            <Upload className="h-4 w-4" />
-            {showImport ? 'Hide Import' : 'Import Director Addresses'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center justify-center gap-2 whitespace-nowrap"
+            >
+              <FileText className="h-4 w-4" />
+              {showHistory ? 'Hide' : 'View'} Import History
+            </button>
+            <button
+              onClick={() => setShowImport(!showImport)}
+              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 flex items-center justify-center gap-2 whitespace-nowrap"
+            >
+              <Upload className="h-4 w-4" />
+              {showImport ? 'Hide Import' : 'Import Director Addresses'}
+            </button>
+          </div>
         )}
       </div>
+
+      {showHistory && practiceId && (
+        <div className="bg-white rounded-lg border p-6">
+          <h3 className="text-lg font-semibold mb-4">Recent Import History (Last 24 Hours)</h3>
+          <ImportHistory practiceId={practiceId} />
+        </div>
+      )}
 
       {showImport && practiceId && (
         <div className="bg-white rounded-lg border p-6">
