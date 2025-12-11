@@ -65,14 +65,41 @@ serve(async (req) => {
     apolloBody.reveal_personal_emails = request.revealPersonalEmails !== false // Default true
     apolloBody.reveal_phone_number = request.revealPhoneNumber !== false // Default true
 
-    // Call Apollo People Match API
-    const response = await fetch("https://api.apollo.io/api/v1/people/match", {
+    // Use Apollo People Search API (available on free plan) instead of Match API
+    // Build search query
+    const searchBody: any = {
+      per_page: 1,
+    }
+    
+    if (apolloBody.name) {
+      searchBody.person_names = [apolloBody.name]
+    } else if (apolloBody.first_name && apolloBody.last_name) {
+      searchBody.person_names = [`${apolloBody.first_name} ${apolloBody.last_name}`]
+    }
+    
+    if (apolloBody.organization_name) {
+      searchBody.organization_names = [apolloBody.organization_name]
+    }
+    
+    if (apolloBody.domain) {
+      searchBody.organization_domains = [apolloBody.domain]
+    }
+    
+    if (apolloBody.email) {
+      searchBody.person_emails = [apolloBody.email]
+    }
+    
+    if (apolloBody.linkedin_url) {
+      searchBody.person_linkedin_urls = [apolloBody.linkedin_url]
+    }
+
+    const response = await fetch("https://api.apollo.io/api/v1/mixed_people/search", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-Api-Key": APOLLO_API_KEY
       },
-      body: JSON.stringify(apolloBody)
+      body: JSON.stringify(searchBody)
     })
 
     if (!response.ok) {
@@ -82,8 +109,8 @@ serve(async (req) => {
 
     const data = await response.json()
 
-    // Check if person was found
-    if (!data.person) {
+    // Check if person was found (search returns {people: []})
+    if (!data.people || data.people.length === 0) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -96,11 +123,12 @@ serve(async (req) => {
       )
     }
 
-    const person = data.person
+    // Use the first (best) match
+    const person = data.people[0]
 
-    // Extract address from person data
+    // Extract address from person data (People Search API structure may differ)
     let address = null
-    if (person.street_address || person.city || person.postal_code) {
+    if (person.street_address || person.city || person.postal_code || person.state) {
       address = {
         line1: person.street_address || '',
         line2: person.street_address_2 || null,
@@ -111,28 +139,35 @@ serve(async (req) => {
       }
     }
 
-    // Extract phone numbers
+    // Extract phone numbers (People Search API structure)
     const phoneNumbers = []
-    if (person.phone_numbers && person.phone_numbers.length > 0) {
+    if (person.phone_numbers && Array.isArray(person.phone_numbers) && person.phone_numbers.length > 0) {
       phoneNumbers.push(...person.phone_numbers.map((p: any) => ({
-        number: p.sanitized_number || p.raw_number,
+        number: p.sanitized_number || p.raw_number || p,
         type: p.type || 'unknown',
         source: p.source
       })))
+    } else if (person.phone && typeof person.phone === 'string') {
+      // Fallback if phone is a string
+      phoneNumbers.push({
+        number: person.phone,
+        type: 'unknown',
+        source: 'apollo'
+      })
     }
 
-    // Extract emails
+    // Extract emails (People Search API structure)
     const emails = []
     if (person.email) {
       emails.push({
         email: person.email,
         type: 'work',
-        verified: person.email_status === 'verified'
+        verified: person.email_status === 'verified' || person.email_status === 'verified'
       })
     }
-    if (person.personal_emails && person.personal_emails.length > 0) {
+    if (person.personal_emails && Array.isArray(person.personal_emails) && person.personal_emails.length > 0) {
       emails.push(...person.personal_emails.map((e: any) => ({
-        email: e,
+        email: typeof e === 'string' ? e : e.email || e,
         type: 'personal',
         verified: false
       })))
