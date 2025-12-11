@@ -60,23 +60,19 @@ serve(async (req) => {
           continue
         }
 
-        // Find existing director using raw SQL via RPC
-        const { data: existing, error: findError } = await supabase.rpc('exec_sql', {
-          query: `SELECT id FROM outreach.directors WHERE name = $1 LIMIT 1`,
-          params: [director.name],
-        }).catch(async () => {
-          // Fallback: try direct query with service role (might work in Edge Functions)
-          const { data, error } = await supabase
-            .from('outreach.directors')
-            .select('id')
-            .eq('name', director.name)
-            .limit(1)
-            .single()
-          
-          return { data: data ? { id: data.id } : null, error }
-        })
+        // Find existing director - try direct query with service role (should work in Edge Functions)
+        let directorId: string | null = null
+        
+        const { data: existing, error: findError } = await supabase
+          .from('outreach.directors')
+          .select('id')
+          .eq('name', director.name)
+          .limit(1)
+          .maybeSingle()
 
-        const directorId = existing?.id || null
+        if (existing && !findError) {
+          directorId = existing.id
+        }
 
         const directorData: any = {
           name: director.name,
@@ -109,13 +105,7 @@ serve(async (req) => {
             .eq('id', directorId)
 
           if (updateError) {
-            // Fallback: use RPC for update
-            const updateQuery = `UPDATE outreach.directors SET ${Object.keys(directorData).map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`
-            const { error: rpcError } = await supabase.rpc('exec_sql', {
-              query: updateQuery,
-              params: [directorId, ...Object.values(directorData)],
-            })
-            if (rpcError) throw rpcError
+            throw updateError
           }
           results.updated++
         } else {
@@ -129,18 +119,10 @@ serve(async (req) => {
           let newDirectorId: string | null = null
 
           if (createError) {
-            // Fallback: use RPC for insert
-            const insertFields = Object.keys(directorData).join(', ')
-            const insertValues = Object.keys(directorData).map((_, i) => `$${i + 1}`).join(', ')
-            const { data: rpcData, error: rpcError } = await supabase.rpc('exec_sql', {
-              query: `INSERT INTO outreach.directors (${insertFields}) VALUES (${insertValues}) RETURNING id`,
-              params: Object.values(directorData),
-            })
-            if (rpcError) throw rpcError
-            newDirectorId = rpcData?.id || null
-          } else {
-            newDirectorId = newDirector.id
+            throw createError
           }
+          
+          newDirectorId = newDirector.id
 
           // Create appointment if company_number provided
           if (director.company_number && newDirectorId) {
