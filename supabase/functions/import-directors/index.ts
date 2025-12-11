@@ -36,6 +36,8 @@ serve(async (req) => {
   try {
     const { practiceId, directors }: ImportDirectorsRequest = await req.json()
 
+    console.log(`Import request received: practiceId=${practiceId}, directors=${directors.length}`)
+
     if (!practiceId || !directors || directors.length === 0) {
       return new Response(
         JSON.stringify({ error: 'practiceId and directors array are required' }),
@@ -72,24 +74,33 @@ serve(async (req) => {
         }
 
         // Find existing director using REST API with schema header
-        const findResponse = await fetch(
-          `${restUrl}/directors?name=eq.${encodeURIComponent(director.name)}&select=id&limit=1`,
-          {
-            headers: {
-              ...headers,
-              'Accept-Profile': 'outreach', // This tells PostgREST to use the outreach schema
-            },
-          }
-        )
-
         let directorId: string | null = null
-        if (findResponse.ok) {
-          const existing = await findResponse.json()
-          if (Array.isArray(existing) && existing.length > 0) {
-            directorId = existing[0].id
-          } else if (existing && existing.id) {
-            directorId = existing.id
+        
+        try {
+          const findResponse = await fetch(
+            `${restUrl}/directors?name=eq.${encodeURIComponent(director.name)}&select=id&limit=1`,
+            {
+              headers: {
+                ...headers,
+                'Accept-Profile': 'outreach', // This tells PostgREST to use the outreach schema
+              },
+            }
+          )
+
+          if (findResponse.ok) {
+            const existing = await findResponse.json()
+            if (Array.isArray(existing) && existing.length > 0) {
+              directorId = existing[0].id
+            } else if (existing && existing.id) {
+              directorId = existing.id
+            }
+          } else {
+            const errorText = await findResponse.text()
+            console.error(`Find director failed: ${findResponse.status} - ${errorText}`)
           }
+        } catch (findError) {
+          console.error(`Error finding director: ${findError}`)
+          // Continue to create new director if find fails
         }
 
         const directorData: any = {
@@ -117,6 +128,7 @@ serve(async (req) => {
 
         if (directorId) {
           // Update existing
+          console.log(`Updating director ${directorId} with name ${director.name}`)
           const updateResponse = await fetch(
             `${restUrl}/directors?id=eq.${directorId}`,
             {
@@ -132,11 +144,14 @@ serve(async (req) => {
 
           if (!updateResponse.ok) {
             const errorText = await updateResponse.text()
+            console.error(`Update failed for ${director.name}: ${errorText}`)
             throw new Error(`Update failed: ${errorText}`)
           }
+          console.log(`Successfully updated director ${directorId}`)
           results.updated++
         } else {
           // Create new
+          console.log(`Creating new director: ${director.name}`)
           const createResponse = await fetch(
             `${restUrl}/directors`,
             {
@@ -152,11 +167,13 @@ serve(async (req) => {
 
           if (!createResponse.ok) {
             const errorText = await createResponse.text()
+            console.error(`Create failed for ${director.name}: ${errorText}`)
             throw new Error(`Create failed: ${errorText}`)
           }
 
           const newDirector = await createResponse.json()
           directorId = Array.isArray(newDirector) ? newDirector[0]?.id : newDirector?.id
+          console.log(`Successfully created director ${directorId}`)
 
           // Create appointment if company_number provided
           if (director.company_number && directorId) {
@@ -176,7 +193,8 @@ serve(async (req) => {
                   is_active: true,
                 }),
               }
-            ).catch(() => {
+            ).catch((err) => {
+              console.warn(`Failed to create appointment for ${directorId}: ${err}`)
               // Ignore duplicate appointment errors
             })
           }
@@ -190,6 +208,8 @@ serve(async (req) => {
       }
     }
 
+    console.log(`Import complete: created=${results.created}, updated=${results.updated}, errors=${results.errors.length}`)
+    
     return new Response(
       JSON.stringify(results),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

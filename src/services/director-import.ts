@@ -328,11 +328,20 @@ export const directorImport = {
           })
 
           if (!response.ok) {
-            const error = await response.json()
-            throw new Error(error.error || `HTTP ${response.status}`)
+            const errorText = await response.text()
+            let error
+            try {
+              error = JSON.parse(errorText)
+            } catch {
+              error = { error: errorText }
+            }
+            console.error(`Edge Function error:`, error)
+            throw new Error(error.error || `HTTP ${response.status}: ${errorText}`)
           }
 
           const importResult = await response.json()
+          console.log(`Import result for row ${i + 1}:`, importResult)
+          
           if (importResult.errors && importResult.errors.length > 0) {
             throw new Error(importResult.errors[0].error)
           }
