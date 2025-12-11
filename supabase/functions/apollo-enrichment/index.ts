@@ -46,18 +46,47 @@ serve(async (req) => {
       )
     }
 
-    // Call Apollo Organization Enrichment
-    const orgResponse = await fetch("https://api.apollo.io/api/v1/organizations/enrich", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Api-Key": APOLLO_API_KEY
-      },
-      body: JSON.stringify({
-        name: request.companyName,
-        domain: request.domain
+    // Apollo enrich endpoint requires domain, so we'll use search if no domain provided
+    // First, try to extract domain from company name or use search endpoint
+    let domain = request.domain
+    
+    // If no domain provided, try to extract from company name (basic heuristic)
+    if (!domain && request.companyName) {
+      // Try to find common UK domain patterns in company name
+      const domainMatch = request.companyName.match(/(?:https?:\/\/)?(?:www\.)?([a-z0-9-]+\.[a-z]{2,})/i)
+      if (domainMatch) {
+        domain = domainMatch[1]
+      }
+    }
+    
+    // Use search endpoint if no domain, enrich if domain available
+    let orgResponse
+    if (domain) {
+      // Use enrich endpoint with domain
+      orgResponse = await fetch("https://api.apollo.io/api/v1/organizations/enrich", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Api-Key": APOLLO_API_KEY
+        },
+        body: JSON.stringify({
+          domain: domain
+        })
       })
-    })
+    } else {
+      // Use search endpoint with name
+      orgResponse = await fetch("https://api.apollo.io/api/v1/organizations/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Api-Key": APOLLO_API_KEY
+        },
+        body: JSON.stringify({
+          name: request.companyName,
+          per_page: 1
+        })
+      })
+    }
 
     if (!orgResponse.ok) {
       const errorText = await orgResponse.text()
