@@ -95,7 +95,13 @@ serve(async (req) => {
 
     const orgData = await orgResponse.json()
 
-    if (!orgData.organization) {
+    // Handle different response formats (enrich returns {organization}, search returns {organizations: []})
+    let org
+    if (orgData.organization) {
+      org = orgData.organization
+    } else if (orgData.organizations && orgData.organizations.length > 0) {
+      org = orgData.organizations[0]
+    } else {
       return new Response(
         JSON.stringify({
           success: false,
@@ -108,8 +114,6 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-
-    const org = orgData.organization
 
     // For CONFIRM operation, check if Apollo address matches
     if (request.operation === 'confirm' && request.addressToConfirm) {
