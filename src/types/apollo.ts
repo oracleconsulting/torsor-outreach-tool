@@ -54,3 +54,61 @@ export interface ApolloEnrichmentResult {
   notes?: string
 }
 
+export interface ApolloPeopleEnrichmentRequest {
+  firstName?: string
+  lastName?: string
+  fullName?: string
+  email?: string
+  organizationName?: string
+  domain?: string
+  linkedinUrl?: string
+  revealPersonalEmails?: boolean
+  revealPhoneNumber?: boolean
+}
+
+export interface ApolloPersonAddress {
+  line1: string
+  line2?: string | null
+  city: string
+  county?: string
+  postcode: string
+  country: string
+}
+
+export interface ApolloPersonEmail {
+  email: string
+  type: 'work' | 'personal'
+  verified: boolean
+}
+
+export interface ApolloPersonPhone {
+  number: string
+  type: string
+  source?: string
+}
+
+export interface ApolloPerson {
+  apolloId: string
+  firstName: string
+  lastName: string
+  fullName: string
+  title: string | null
+  organizationName: string | null
+  organizationDomain: string | null
+  linkedinUrl: string | null
+  address: ApolloPersonAddress | null
+  emails: ApolloPersonEmail[]
+  phoneNumbers: ApolloPersonPhone[]
+  verifiedEmail: string | null
+  primaryPhone: string | null
+}
+
+export interface ApolloPeopleEnrichmentResult {
+  success: boolean
+  found: boolean
+  source: 'apollo'
+  person?: ApolloPerson
+  confidence: number
+  notes?: string
+}
+

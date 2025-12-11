@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 import type { Director } from '../types/directors'
 import { apollo } from './apollo'
+import type { ApolloPeopleEnrichmentRequest } from '../types/apollo'
 
 export interface DirectorCSVRow {
   // Company info (for matching)
@@ -227,9 +228,10 @@ export const directorImport = {
     file: File,
     practiceId: string,
     options?: {
-      confirmAddresses?: boolean // Use Perplexity to confirm addresses
+      confirmAddresses?: boolean // Use Apollo to confirm addresses
       skipConfirmation?: boolean // Skip if address already confirmed
-      findMissingAddresses?: boolean // Use AI to find addresses when they're missing from CSV
+      findMissingAddresses?: boolean // Use Apollo to find addresses when they're missing from CSV
+      enrichContacts?: boolean // Use Apollo to enrich director contact details (email, phone, LinkedIn)
       onProgress?: (current: number, total: number) => void // Progress callback
     }
   ): Promise<ImportResult> {
@@ -433,6 +435,84 @@ export const directorImport = {
                 data: directorRow,
               })
               // Continue with unconfirmed address
+            }
+          }
+          
+          // Enrich director contact details with Apollo if requested
+          if (options?.enrichContacts && directorRow.dir_full_name && directorRow.company_name) {
+            try {
+              // Add a small delay to avoid rate limiting
+              if (i > 0 && i % 5 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 1000)) // 1 second delay every 5 rows
+              }
+              
+              // Parse name into first/last if needed
+              const nameParts = (directorRow.dir_full_name || '').trim().split(/\s+/)
+              const firstName = nameParts[0] || ''
+              const lastName = nameParts.slice(1).join(' ') || ''
+              
+              const peopleRequest: ApolloPeopleEnrichmentRequest = {
+                firstName: firstName,
+                lastName: lastName,
+                fullName: directorRow.dir_full_name,
+                organizationName: directorRow.company_name,
+                domain: undefined, // Could extract from company website if available
+                revealPersonalEmails: true,
+                revealPhoneNumber: true,
+              }
+              
+              const peopleResult = await apollo.enrichPerson(peopleRequest)
+              
+              if (peopleResult.success && peopleResult.found && peopleResult.person) {
+                const person = peopleResult.person
+                
+                // Update director row with enriched contact details
+                if (person.verifiedEmail) {
+                  directorRow.email = person.verifiedEmail
+                } else if (person.emails && person.emails.length > 0) {
+                  directorRow.email = person.emails[0].email
+                }
+                
+                if (person.primaryPhone) {
+                  directorRow.phone = person.primaryPhone
+                }
+                
+                if (person.linkedinUrl) {
+                  directorRow.linkedin_url = person.linkedinUrl
+                }
+                
+                // Update address if found and we don't have one
+                if (person.address && !directorRow.dir_address_line_1) {
+                  directorRow.dir_address_line_1 = person.address.line1
+                  directorRow.dir_address_line_2 = person.address.line2 || undefined
+                  directorRow.dir_town = person.address.city
+                  directorRow.dir_postcode = person.address.postcode
+                  directorRow.dir_country = person.address.country
+                  
+                  // Mark as Apollo-enriched
+                  if (!foundAddress && !confirmedAddress) {
+                    foundAddress = {
+                      address_line_1: person.address.line1,
+                      address_line_2: person.address.line2 || undefined,
+                      locality: person.address.city,
+                      postal_code: person.address.postcode,
+                      country: person.address.country,
+                    }
+                    confirmationDetail.confirmed = true
+                    confirmationDetail.confirmation_method = 'apollo_confirmed'
+                    confirmationDetail.confirmed_address = `${person.address.line1}, ${person.address.line2 || ''}, ${person.address.city}, ${person.address.postcode}`.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '')
+                    confirmationDetail.confidence = (peopleResult.confidence >= 80 ? 'high' : peopleResult.confidence >= 50 ? 'medium' : 'low') as 'high' | 'medium' | 'low'
+                  }
+                }
+              }
+            } catch (error) {
+              // Log but don't fail the import if contact enrichment fails
+              console.warn(`Failed to enrich contacts for ${directorRow.dir_full_name}:`, error)
+              result.warnings.push({
+                row: i + 1,
+                warning: `Contact enrichment failed: ${(error as Error).message}`,
+                data: directorRow,
+              })
             }
           }
           

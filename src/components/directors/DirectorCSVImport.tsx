@@ -75,6 +75,7 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
 
   const [confirmAddresses, setConfirmAddresses] = useState(false) // Default to false for faster imports
   const [findMissingAddresses, setFindMissingAddresses] = useState(false) // Find addresses when missing from CSV
+  const [enrichContacts, setEnrichContacts] = useState(false) // Enrich director contact details with Apollo
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null)
 
   const handleImport = async () => {
@@ -89,6 +90,7 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
       const importResult = await directorImport.importFromCSV(file, practiceId, {
         confirmAddresses,
         findMissingAddresses,
+        enrichContacts,
         onProgress: (current, total) => {
           setProgress({ current, total })
         },
@@ -235,10 +237,28 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
               className="h-4 w-4"
             />
             <label htmlFor="confirm-addresses" className="text-sm cursor-pointer">
-              <span className="font-medium">Confirm existing addresses with AI</span>
+              <span className="font-medium">Confirm existing addresses with Apollo</span>
               <span className="text-gray-600 block text-xs mt-1">
-                Use Perplexity AI to verify and correct director contact addresses that are already in your CSV (not registered office addresses).
-                <strong className="text-orange-600"> Note: This will significantly slow down the import (1-2 seconds per row).</strong>
+                Use Apollo.io to verify and correct director contact addresses that are already in your CSV (not registered office addresses).
+                <strong className="text-orange-600"> Note: This will slow down the import (~600ms per row).</strong>
+              </span>
+            </label>
+          </div>
+          
+          <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <input
+              type="checkbox"
+              id="enrich-contacts"
+              checked={enrichContacts}
+              onChange={(e) => setEnrichContacts(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <label htmlFor="enrich-contacts" className="text-sm cursor-pointer">
+              <span className="font-medium">Enrich director contact details with Apollo</span>
+              <span className="text-gray-600 block text-xs mt-1">
+                Use Apollo.io to find director email addresses, phone numbers, LinkedIn profiles, and contact addresses.
+                <strong className="text-blue-600"> Recommended: This adds verified contact information for outreach.</strong>
+                <strong className="text-orange-600"> Note: This will slow down the import (~600ms per row).</strong>
               </span>
             </label>
           </div>
@@ -255,7 +275,7 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
                 {progress ? (
                   <>
                     Processing {progress.current} of {progress.total} rows
-                    {findMissingAddresses ? ' (finding addresses...)' : confirmAddresses ? ' (confirming addresses...)' : ''}
+                    {enrichContacts ? ' (enriching contacts...)' : findMissingAddresses ? ' (finding addresses...)' : confirmAddresses ? ' (confirming addresses...)' : ''}
                   </>
                 ) : (
                   <>

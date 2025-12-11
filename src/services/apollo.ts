@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import type { ApolloEnrichmentRequest, ApolloEnrichmentResult } from '../types/apollo'
+import type { ApolloEnrichmentRequest, ApolloEnrichmentResult, ApolloPeopleEnrichmentRequest, ApolloPeopleEnrichmentResult } from '../types/apollo'
 import type { CompanyForEnrichment } from '../types/enrichment'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -159,6 +159,81 @@ export const apollo = {
     const { error } = await supabase.from('outreach.enrichment_records').insert(record)
 
     if (error) throw error
+  },
+
+  /**
+   * Enrich a person's contact details using Apollo People Match API
+   */
+  async enrichPerson(request: ApolloPeopleEnrichmentRequest): Promise<ApolloPeopleEnrichmentResult> {
+    const { data: { session } } = await supabase.auth.getSession()
+
+    try {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/apollo-people-enrichment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token || ''}`,
+        },
+        body: JSON.stringify(request),
+      })
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`
+        try {
+          const error = await response.json()
+          errorMessage = error.error || error.message || errorMessage
+        } catch {
+          const errorText = await response.text()
+          errorMessage = errorText || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+
+      return response.json()
+    } catch (error: any) {
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        throw new Error(`Network error: Unable to reach Apollo people enrichment service. Please check your connection and ensure the Edge Function is deployed.`)
+      }
+      throw error
+    }
+  },
+
+  /**
+   * Bulk enrich multiple people
+   */
+  async enrichPeopleBatch(
+    people: ApolloPeopleEnrichmentRequest[],
+    onProgress?: (current: number, total: number) => void
+  ): Promise<Map<string, ApolloPeopleEnrichmentResult>> {
+    const results = new Map<string, ApolloPeopleEnrichmentResult>()
+
+    for (let i = 0; i < people.length; i++) {
+      const person = people[i]
+      onProgress?.(i + 1, people.length)
+
+      try {
+        const result = await this.enrichPerson(person)
+        // Use full name or email as key
+        const key = person.fullName || `${person.firstName} ${person.lastName}`.trim() || person.email || `person-${i}`
+        results.set(key, result)
+      } catch (error: any) {
+        const key = person.fullName || `${person.firstName} ${person.lastName}`.trim() || person.email || `person-${i}`
+        results.set(key, {
+          success: false,
+          found: false,
+          source: 'apollo',
+          confidence: 0,
+          notes: error.message,
+        })
+      }
+
+      // Rate limiting - wait between requests (Apollo allows 120 requests/minute)
+      if (i < people.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 600)) // 600ms = ~100 requests/minute
+      }
+    }
+
+    return results
   },
 }
 
