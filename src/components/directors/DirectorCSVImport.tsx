@@ -207,7 +207,8 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
 
       {/* Results */}
       {result && (
-        <div className="space-y-4">
+        <div className="space-y-4 mt-6 border-t pt-6">
+          <h4 className="text-lg font-semibold mb-4">Import Results</h4>
           <div className={`grid gap-4 ${result.confirmed > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
             <div className="p-4 bg-gray-50 rounded-lg">
               <div className="text-2xl font-bold">{result.total}</div>
