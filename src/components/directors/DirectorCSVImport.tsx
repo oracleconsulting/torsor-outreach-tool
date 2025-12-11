@@ -44,8 +44,12 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
         },
       })
       console.log('Setting result in component:', importResult)
-      setResult(importResult)
-      setProgress(null)
+      // Force a state update to ensure re-render
+      setResult(null)
+      setTimeout(() => {
+        setResult(importResult)
+        setProgress(null)
+      }, 0)
       
       if (importResult.total === 0) {
         toast.error('No rows found in CSV file. Please check the file format.')
@@ -84,6 +88,11 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
     a.download = 'director_addresses_template.csv'
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  // Debug: Log when component renders with result
+  if (result) {
+    console.log('Component rendering with result:', result)
   }
 
   return (
@@ -207,8 +216,8 @@ Jane Doe,,87654321,456 High Street,Suite 2,Manchester,Greater Manchester,M1 1AA,
 
       {/* Results */}
       {result && (
-        <div className="space-y-4 mt-6 border-t pt-6">
-          <h4 className="text-lg font-semibold mb-4">Import Results</h4>
+        <div className="space-y-4 mt-6 border-t-2 border-gray-300 pt-6 bg-white rounded-lg p-6 shadow-md">
+          <h4 className="text-xl font-bold mb-4 text-gray-900">Import Results</h4>
           <div className={`grid gap-4 ${result.confirmed > 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
             <div className="p-4 bg-gray-50 rounded-lg">
               <div className="text-2xl font-bold">{result.total}</div>
