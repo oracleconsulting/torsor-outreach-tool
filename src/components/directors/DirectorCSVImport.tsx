@@ -71,7 +71,7 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
     } catch (error) {
       console.error('Failed to clear results:', error)
     }
-  }
+  } // Force rebuild
 
   const [confirmAddresses, setConfirmAddresses] = useState(false) // Default to false for faster imports
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null)
