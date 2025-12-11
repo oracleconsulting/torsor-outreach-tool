@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Upload, FileText, CheckCircle, XCircle, Loader2, Download } from 'lucide-react'
 import { directorImport, type ImportResult, type ConfirmationDetail } from '../../services/director-import'
 import toast from 'react-hot-toast'
@@ -8,10 +8,47 @@ interface DirectorCSVImportProps {
   onImportComplete?: (result: ImportResult) => void
 }
 
+const STORAGE_KEY = 'director-import-results'
+
 export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVImportProps) {
   const [file, setFile] = useState<File | null>(null)
   const [isImporting, setIsImporting] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
+
+  // Load saved results from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`${STORAGE_KEY}-${practiceId}`)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        // Only restore if it's recent (within last 24 hours)
+        if (parsed.timestamp && Date.now() - parsed.timestamp < 24 * 60 * 60 * 1000) {
+          setResult(parsed.result)
+          console.log('Restored import results from localStorage:', parsed.result)
+        } else {
+          // Clear old results
+          localStorage.removeItem(`${STORAGE_KEY}-${practiceId}`)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load saved results:', error)
+    }
+  }, [practiceId])
+
+  // Save results to localStorage whenever they change
+  useEffect(() => {
+    if (result) {
+      try {
+        localStorage.setItem(`${STORAGE_KEY}-${practiceId}`, JSON.stringify({
+          result,
+          timestamp: Date.now(),
+        }))
+        console.log('Saved import results to localStorage')
+      } catch (error) {
+        console.error('Failed to save results:', error)
+      }
+    }
+  }, [result, practiceId])
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -21,7 +58,18 @@ export function DirectorCSVImport({ practiceId, onImportComplete }: DirectorCSVI
         return
       }
       setFile(selectedFile)
-      setResult(null)
+      // Don't clear result when selecting a new file - let user see previous results
+      // setResult(null)
+    }
+  }
+
+  const clearResults = () => {
+    setResult(null)
+    try {
+      localStorage.removeItem(`${STORAGE_KEY}-${practiceId}`)
+      toast.success('Results cleared')
+    } catch (error) {
+      console.error('Failed to clear results:', error)
     }
   }
 
