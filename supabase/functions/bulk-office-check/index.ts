@@ -1,16 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const COMPANIES_HOUSE_API = "https://api.company-information.service.gov.uk"
-const API_KEY = Deno.env.get("COMPANIES_HOUSE_API_KEY")!
+const API_KEY = Deno.env.get("COMPANIES_HOUSE_API_KEY")
 
 const BATCH_SIZE = 10
 const DELAY_MS = 500
 const RATE_MAX = 600
 const RATE_WINDOW_MS = 5 * 60 * 1000
 
-const corsHeaders = {
+const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 }
 
 const rateLog: number[] = []
@@ -72,6 +73,20 @@ interface CompanyRow {
 }
 
 async function fetchCompany(companyNumber: string): Promise<CompanyRow> {
+  if (!API_KEY) {
+    return {
+      company_number: companyNumber,
+      company_name: "",
+      company_status: "",
+      registered_office: "",
+      address_line_1: "",
+      locality: "",
+      postal_code: "",
+      date_of_creation: "",
+      sic_codes: "",
+      error: "Companies House API key not configured",
+    }
+  }
   if (!canRequest()) {
     return {
       company_number: companyNumber,
@@ -173,8 +188,11 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  console.log("bulk-office-check: request received", req.method)
   try {
     const body = await req.json()
+    const companyCount = Array.isArray(body.company_numbers) ? body.company_numbers.length : 0
+    console.log("bulk-office-check: body parsed", companyCount, "companies")
     const company_numbers: string[] = Array.isArray(body.company_numbers) ? body.company_numbers : []
     const known_address: string = typeof body.known_address === "string" ? body.known_address.trim() : ""
 

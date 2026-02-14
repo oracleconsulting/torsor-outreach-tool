@@ -52,10 +52,17 @@ export function BulkOfficeCheckPage() {
       return
     }
     setIsRunning(true)
-    setProgress(`Checking ${parsedNumbers.length} companies...`)
+    setProgress(`Checking 0 of ${parsedNumbers.length} companies...`)
     setResult(null)
     try {
-      const data = await bulkOfficeCheck.run(parsedNumbers, knownAddress.trim())
+      const data = await bulkOfficeCheck.runWithProgress(
+        parsedNumbers,
+        knownAddress.trim(),
+        (done, total, resultSoFar) => {
+          setProgress(`Checking ${done} of ${total} companies...`)
+          setResult(resultSoFar)
+        }
+      )
       setResult(data)
       setProgress(null)
       toast.success(
@@ -63,7 +70,9 @@ export function BulkOfficeCheckPage() {
       )
     } catch (e: any) {
       setProgress(null)
-      toast.error(e?.message ?? 'Bulk check failed')
+      const msg = e?.message ?? 'Bulk check failed'
+      console.error('[BulkOfficeCheck]', e)
+      toast.error(msg)
     } finally {
       setIsRunning(false)
     }
