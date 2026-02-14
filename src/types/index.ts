@@ -124,6 +124,29 @@ export interface ApiError {
   details?: Record<string, any>
 }
 
+// Bulk Registered Office Check
+export interface BulkOfficeCheckCompany {
+  company_number: string
+  company_name: string
+  company_status: string
+  registered_office: string
+  address_line_1: string
+  locality: string
+  postal_code: string
+  date_of_creation: string
+  sic_codes: string
+  error: string
+}
+
+export interface BulkOfficeCheckResult {
+  total_checked: number
+  still_there: BulkOfficeCheckCompany[]
+  moved: BulkOfficeCheckCompany[]
+  dissolved: BulkOfficeCheckCompany[]
+  errors: BulkOfficeCheckCompany[]
+  summary: { still_there: number; moved: number; dissolved: number; errors: number }
+}
+
 export interface SearchOptions {
   limit?: number
   start_index?: number

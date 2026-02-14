@@ -11,6 +11,7 @@ import { CovenantsPage } from './pages/CovenantsPage'
 import { SearchHistoryPage } from './pages/SearchHistoryPage'
 import { EventsPage } from './pages/EventsPage'
 import { NetworkPage } from './pages/NetworkPage'
+import { BulkOfficeCheckPage } from './pages/BulkOfficeCheckPage'
 import { supabase } from './lib/supabase'
 
 const queryClient = new QueryClient({
@@ -99,6 +100,13 @@ const addressSearchRoute = createRoute({
   beforeLoad: requireAuth,
 })
 
+const bulkOfficeCheckRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/bulk-office-check',
+  component: BulkOfficeCheckPage,
+  beforeLoad: requireAuth,
+})
+
 const prospectsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/prospects',
@@ -140,6 +148,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   firmSearchRoute,
   addressSearchRoute,
+  bulkOfficeCheckRoute,
   prospectsRoute,
   covenantsRoute,
   historyRoute,
