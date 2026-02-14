@@ -11,16 +11,37 @@ async function callEdgeFunction(
   functionName: string,
   body: object
 ): Promise<BulkOfficeCheckResult> {
+  if (!SUPABASE_URL || !SUPABASE_URL.startsWith('https://')) {
+    throw new Error(
+      'Supabase URL not configured. Set VITE_SUPABASE_URL in Railway (e.g. https://YOUR_PROJECT.supabase.co) and redeploy.'
+    )
+  }
+  if (!SUPABASE_ANON_KEY) {
+    throw new Error(
+      'Supabase anon key not configured. Set VITE_SUPABASE_ANON_KEY in Railway and redeploy.'
+    )
+  }
   const { data: { session } } = await supabase.auth.getSession()
-  const url = `${SUPABASE_URL}/functions/v1/${functionName}`
+  const url = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/${functionName}`
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${session?.access_token ?? ''}`,
+    apikey: SUPABASE_ANON_KEY,
   }
-  if (SUPABASE_ANON_KEY) {
-    headers['apikey'] = SUPABASE_ANON_KEY
+  let res: Response
+  try {
+    res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) })
+  } catch (networkErr: any) {
+    console.error('[bulkOfficeCheck] fetch failed', networkErr)
+    const isCorsOrNetwork =
+      networkErr?.message === 'Failed to fetch' ||
+      networkErr?.name === 'TypeError'
+    throw new Error(
+      isCorsOrNetwork
+        ? 'Network error: cannot reach Supabase. Check Railway env VITE_SUPABASE_URL (https://YOUR_PROJECT.supabase.co), redeploy, and ensure the bulk-office-check Edge Function is deployed in Supabase.'
+        : (networkErr?.message ?? 'Network error')
+    )
   }
-  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     const msg = (err as { error?: string }).error ?? `HTTP ${res.status} ${res.statusText}`
